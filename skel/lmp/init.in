@@ -1,0 +1,26 @@
+# Read data
+include   "system.in.init"
+read_data "system.data"
+include   "system.in.settings"
+
+# optimization
+minimize 0 1.0e-8 1000 10000000
+
+# equilibration
+timestep 0.5
+variable  my_timestep  equal  0.5                # step in fs
+variable  my_step      equal  ${my_timestep}/1e3 # step in ps
+variable  my_temp      equal  340                # temp in K
+variable  my_temp_damp equal  ${my_timestep}*100 # thermostat
+variable  my_dump      equal  5                  # dump in ps
+variable  n_dump       equal  ${my_dump}/${my_step}
+
+fix 0 all nve
+fix 1 all temp/csvr ${my_temp} ${my_temp} ${my_temp_damp} 123
+
+thermo ${n_dump}
+dump 1 all custom ${n_dump} equi.dump id type x y z
+dump_modify 1 sort id
+
+run 10000000 # 5ns
+write_restart ckpt.restart

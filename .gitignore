@@ -1,0 +1,8 @@
+/.nextflow*
+/work/
+/trajs/
+/models/
+/inputs/
+/datasets/
+/analyses/
+/skel/cp2k-aux/

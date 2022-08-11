@@ -1,0 +1,3 @@
+[submodule "tips"]
+	path = tips
+	url = git@github.com:yqshao/tips.git
