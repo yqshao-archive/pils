@@ -21,20 +21,25 @@
      &TRAJECTORY
        FORMAT XYZ
        &EACH
-         MD 20
+         MD 1
        &END EACH
      &END TRAJECTORY
      &FORCES ON
        FORMAT XYZ
        &EACH
-         MD 20
+         MD 1
        &END EACH
      &END FORCES
      &STRESS ON
        &EACH
-         MD 20
+         MD 1
        &END EACH
      &END STRESS
+     &CELL ON
+       &EACH
+         MD 1
+       &END EACH
+     &END CELL
    &END PRINT
 &END MOTION
 
