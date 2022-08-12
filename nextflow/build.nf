@@ -12,8 +12,8 @@ process moltemplate {
   label 'moltemplate'
 
   input:
-    val name
-    tuple val(acid), val(base), val(anion), val(cation), \
+    tuple val(name), \
+          val(acid), val(base), val(anion), val(cation), \
           val(nacid), val(nbase), val(nion), val(box), path(files)
 
   output:
@@ -103,5 +103,5 @@ def tag2inp (tag, rho) {
 
   // input files
   def files = file("skel/template/{${[acid,base,cation,anion].join(',')}}.{lt,pdb}")
-  return [name, [acid, base, anion, cation, nacid, nbase, nion, box, files]]
+  return [name, acid, base, anion, cation, nacid, nbase, nion, box, files]
 }

@@ -18,23 +18,12 @@ params.rhos = '1.1551,1.0753' // g cm^-3
 params.lmp_inp = 'skel/lmp/init.in'
 
 workflow lmpinit {
-  channel.fromList(params.tags.tokenize(','))
-    .combine (channel.fromList(params.rhos.tokenize(',')))
-    .map { tag, rho -> tag2inp(tag, rho) }
-    .multiMap { name, inp ->
-      name: name
-      inp: inp
-    }
-    .set { ch }
-
-  moltemplate(ch.name, ch.inp)
-    .multiMap {name, aux ->
-      name: name
-      input: file(params.lmp_inp)
-      aux: aux
-    }
-    .set { ch }
-  lammpsMD(ch.name, ch.input, ch.aux)
+  channel.fromList(params.tags.tokenize(','))               \
+    | combine (channel.fromList(params.rhos.tokenize(','))) \
+    | map { tag, rho -> tag2inp(tag, rho) }                 \
+    | moltemplate                                           \
+    | map {name, aux -> [name, file(params.lmp_inp), aux]}  \
+    | lammpsMD
 }
 
 
@@ -47,15 +36,11 @@ params.cp2k_geo = 'trajs/lmp/*/equi.dump'
 include { cp2kMD } from './tips/nextflow/cp2k.nf' addParams(publish: 'trajs/cp2k')
 
 workflow cp2kinit {
-  channel.fromPath(params.cp2k_geo)
-    .multiMap { it ->
-      name: it.parent.name
-      input: file(params.cp2k_inp)
-      dump: it
-      flags: "--fmt lammps-dump --idx -1 --emap ${file("trajs/build/$it.parent.name/system.data")}"
-    }
-    .set{ch}
-  ch_init = cp2kMD(ch.name, ch.input, ch.dump, ch.flags)
+  channel.fromPath(params.cp2k_geo)                    \
+    | map {it ->                                       \
+           [it.parent.name, file(params.cp2k_inp), it, \
+            "--fmt lammps-dump --idx -1 --emap ${file("trajs/build/$it.parent.name/system.data")}"]} \
+    | cp2kMD
 }
 
 
@@ -73,41 +58,22 @@ params.ase_flags = '--ensemble nvt --T 300 --t 1 --dt 0.5 --log-every 20'
 
 workflow train{
   // combine
-  channel.fromPath(params.datasets)
-    .combine(channel.fromPath(params.pinn_inp))
-    .combine(channel.of(1..params.repeats))
-    .multiMap{ ds, inp, seed ->
-      ds: ds
-      inp: inp
-      flag: "--seed $seed $params.pinn_flags"
-      name: "$ds.baseName-$inp.baseName-$seed"
-      path: "models/$ds.baseName-$inp.baseName-$seed"
-    }
-    .set {ch}
+  channel.fromPath(params.datasets)                \
+    | combine(channel.fromPath(params.pinn_inp))   \
+    | combine(channel.of(1..params.repeats))       \
+    | map { ds, inp, seed ->                       \
+            [ "$ds.baseName-$inp.baseName-$seed", ds, "--seed $seed $params.pinn_flags"]} \
+    | pinnTrain
 
-  ch_models = pinnTrain(ch.name, ch.ds, ch.inp, ch.flag, ch.path)
-   
-  ch_models
-    .combine(channel.fromPath(params.asemd_init))
-    .multiMap {
-      name, model, init ->
-      name: "$name-$init.baseName"
-      init: init
-      model: model
-      path: "trajs/$name-$init.baseName"
-    }.set { ch }
-  ch_md = aseMD(ch.name, ch.model, ch.init, params.ase_flags, ch.path)
+  pinnTrain.out                                    \
+    | combine(channel.fromPath(params.asemd_init)) \
+    | map { name, mode, init -> ["$name-$init.baseName", mode, init, params.ase_flags]} \
+    | aseMD
 
-  ch_models
-    .map {name, model -> [(name =~ /(.*)-\d/)[0][1], model]}
-    .groupTuple()
-    .combine(channel.fromPath(params.asemd_init))
-    .multiMap {
-      name, model, init ->
-      name: "$name-$init.baseName"
-      init: init
-      model: model
-      path: "trajs/$name-$init.baseName"
-    }.set { ch }
-  ch_emd = aseEMD(ch.name, ch.model, ch.init, params.ase_flags, ch.path)
+  pinnTrain.out                                                \
+    | map {name, model -> [(name =~ /(.*)-\d/)[0][1], model]}  \
+    | groupTuple                                               \
+    | combine(channel.fromPath(params.asemd_init))             \
+    | map { name, mode, init -> ["$name-$init.baseName", mode, init, params.ase_flags]} \
+    | aseEMD
 }
