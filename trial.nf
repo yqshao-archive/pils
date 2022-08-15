@@ -57,31 +57,31 @@ workflow cp2krestart {
 //===============================================//
 include { pinnTrain } from './tips/nextflow/pinn.nf'
 include { aseMD; aseMD as aseEMD } from './tips/nextflow/ase.nf'
-params.datasets = './datasets/*.data'
-params.pinn_inp = './inputs/pinet*.yml'
-params.asemd_init = './init/*.xyz'
+params.datasets = './datasets/*.{yml,tfr}'
+params.pinn_inp = './skel/pinn/*.yml'
+params.asemd_init = './skel/init/*.xyz'
 params.repeats = 5
 params.pinn_flags = '--train-steps 500000 --log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 1000 --init'
 params.ase_flags = '--ensemble nvt --T 300 --t 1 --dt 0.5 --log-every 20'
 
-workflow train{
+workflow train {
   // combine
-  channel.fromPath(params.datasets)                \
-    | combine(channel.fromPath(params.pinn_inp))   \
-    | combine(channel.of(1..params.repeats))       \
-    | map { ds, inp, seed ->                       \
-            [ "$ds.baseName-$inp.baseName-$seed", ds, "--seed $seed $params.pinn_flags"]} \
+  channel.fromFilePairs(params.datasets)         \
+    | combine(channel.fromPath(params.pinn_inp)) \
+    | combine(channel.of(1..params.repeats))     \
+    | map {name, ds, inp, seed ->                \
+           ["$name-$inp.baseName-$seed", ds, inp, "--seed $seed $params.pinn_flags"]} \
     | pinnTrain
 
-  pinnTrain.out                                    \
+  pinnTrain.out.model                              \
     | combine(channel.fromPath(params.asemd_init)) \
     | map { name, mode, init -> ["$name-$init.baseName", mode, init, params.ase_flags]} \
     | aseMD
 
-  pinnTrain.out                                                \
-    | map {name, model -> [(name =~ /(.*)-\d/)[0][1], model]}  \
-    | groupTuple                                               \
-    | combine(channel.fromPath(params.asemd_init))             \
+  pinnTrain.out.model                                         \
+    | map {name, model -> [(name =~ /(.*)-\d/)[0][1], model]} \
+    | groupTuple                                              \
+    | combine(channel.fromPath(params.asemd_init))            \
     | map { name, mode, init -> ["$name-$init.baseName", mode, init, params.ase_flags]} \
     | aseEMD
 }
