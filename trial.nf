@@ -39,14 +39,14 @@ include { cp2kMD; cp2k } from './tips/nextflow/cp2k.nf' addParams(publish: 'traj
 workflow cp2kinit {
   channel.fromPath(params.cp2k_geo)                    \
     | map {it ->                                       \
-           ["nvt-0-10ps/it.parent.name", file(params.cp2k_inp), it, \
-            "--fmt lammps-dump --idx -1 --emap ${file("trajs/build/$it.parent.name/system.data")}"]} \
+           ["nvt-0-10ps/${it.parent.name}", file(params.cp2k_inp), it, \
+            "--fmt lammps-dump --idx -1 --emap ${file("trajs/build/${it.parent.name}/system.data")}"]} \
     | cp2kMD
 }
 
 workflow cp2krestart {
   int from = params.cp2k_from.toInteger()
-  channel.fromPath("trajs/cp2k/nvt-${from-10}-${from}ps/*/cp2k-md-1_20000.restart") \
+  channel.fromPath("trajs/cp2k/nvt-${from-10}-${from}ps/*/cp2k-md-1_${2000*from}.restart") \
     | map {it ->                                                                    \
            ["nvt-${from}-${from+10}ps/${it.parent.name}", it, file(params.cp2k_aux)] }\
     | cp2k
