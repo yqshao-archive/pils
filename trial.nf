@@ -55,8 +55,8 @@ workflow cp2krestart {
 //===============================================//
 // THE INITIAL TRAINING AND EVALUATION OF MODELS //
 //===============================================//
-include { pinnTrain } from './tips/nextflow/pinn.nf'
-include { aseMD; aseMD as aseEMD } from './tips/nextflow/ase.nf'
+include { pinnTrain } from './tips/nextflow/pinn.nf' addParams(publish: 'models')
+include { aseMD; aseMD as aseEMD } from './tips/nextflow/ase.nf' addParams(publish: 'trajs/ase')
 params.datasets = './datasets/*.{yml,tfr}'
 params.pinn_inp = './skel/pinn/*.yml'
 params.asemd_init = './skel/init/*.xyz'
