@@ -61,7 +61,8 @@ params.datasets = './datasets/*.{yml,tfr}'
 params.pinn_inp = './skel/pinn/*.yml'
 params.asemd_init = './skel/init/*.xyz'
 params.repeats = 5
-params.pinn_flags = '--train-steps 500000 --log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 1000 --init'
+params.adam_flags = '--train-steps 5000000 --log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 1000 --init'
+params.ekf_flags = '--train-steps 500000 --log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 1000 --init'
 params.ase_flags = '--ensemble nvt --T 300 --t 1 --dt 0.5 --log-every 20'
 
 workflow train {
@@ -70,8 +71,11 @@ workflow train {
     | combine(channel.fromPath(params.pinn_inp)) \
     | combine(channel.of(1..params.repeats))     \
     | map {name, ds, inp, seed ->                \
-           ["$name-$inp.baseName-$seed", ds, inp, "--seed $seed $params.pinn_flags"]} \
-    | pinnTrain
+           ["$name-$inp.baseName-$seed", ds, inp,\
+            inp.baseName.contains('ekf') ?       \
+            "--seed $seed $params.ekf_flags":    \
+            "--seed $seed $params.adam_flags"]}  \
+    | pinnTrain // ^- change pinn flags according to input
 
   pinnTrain.out.model                              \
     | combine(channel.fromPath(params.asemd_init)) \
