@@ -95,15 +95,15 @@ workflow train {
 // Extract Feature and Perform Clustering //
 //========================================//
 params.models = 'models-old/*/model'
-params.latent_ds = 'datasets/pils-v2.data'
+params.latent_ds = 'datasets/samples.data'
 params.latent_flags = '--take 100'
 
 include { extract_latent } from './nextflow/latent.nf'
 
 workflow latent {
-  Channel.fromPath(params.models, type:'dir') \
+  Channel.fromPath(params.models, type:'dir')     \
     | combine(Channel.fromPath(params.latent_ds)) \
-    | map {model, ds -> \
+    | map {model, ds ->                           \
            ["${model.parent.name}-$ds.baseName", model, ds, params.latent_flags]} \
     | extract_latent
 }
