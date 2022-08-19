@@ -1,10 +1,10 @@
 /.nextflow*
 /work/
-/trajs/
-/models/
-/inputs/
-/datasets/
-/analyses/
+/trajs
+/models
+/inputs
+/datasets
+/analyses
 /skel/cp2k-aux/
-/latent/
-/.ipynb_checkpoints/
+/latent
+.ipynb_checkpoints/
