@@ -1,0 +1,33 @@
+model:
+  name: potential_model
+  params:
+    e_dress:
+      1: 0.0
+      6: 0.0
+      7: 0.0
+      8: 0.0
+    e_loss_multiplier: 1
+    e_scale: 27.2114
+    e_unit: 27.2114
+    f_loss_multiplier: 10000
+    log_e_per_atom: true
+    separate_errors: true
+    use_e_per_atom: false
+    no_force_comp: 10
+    use_force: true
+network:
+  name: PiNet
+  params:
+    rc: 5.5
+    depth: 4
+    n_basis: 10
+    basis_type: gaussian
+    atom_types: [1, 6, 7, 8]
+    ii_nodes:   [16, 16, 16]
+    pp_nodes:   [16, 16, 16]
+    pi_nodes:   [16]
+    out_nodes:  [16]
+optimizer:
+  class_name: EKF
+  config:
+    learning_rate: 0.001

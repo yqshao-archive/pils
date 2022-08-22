@@ -8,3 +8,4 @@
 /skel/cp2k-aux/
 /latent
 .ipynb_checkpoints/
+/notebooks/*.png

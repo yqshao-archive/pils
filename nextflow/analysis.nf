@@ -2,7 +2,7 @@
 nextflow.enable.dsl=2
 
 // parameters
-params.ase_trajs = './trajs/*/asemd.traj'
+params.ase_trajs = './trajs/ase/*/asemd.traj'
 
 // processes
 process ase_traj_fmax {
