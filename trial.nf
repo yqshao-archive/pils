@@ -90,6 +90,28 @@ workflow train {
     | aseEMD
 }
 
+params.pinn_models = './models/*/model'
+params.remd_tag = 'nvt-340k-100ps'
+params.remd_flags = '--ensemble nvt --T 340 --t 100 --dt 0.5 --log-every 20'
+
+workflow remd {
+  channel.fromPath(params.pinn_models, type:'dir') \
+    | map {model -> [model.parent.name, model]}    \
+    | set {models}
+
+  // models
+  //   | combine(channel.fromPath(params.asemd_init)) \
+  //   | map { name, mode, init -> ["$name-$init.baseName", mode, init, params.ase_flags]} \
+  //   | aseMD
+
+  models
+    | map {name, model -> [(name =~ /(.*)-\d/)[0][1], model]} \
+    | groupTuple                                              \
+    | combine(channel.fromPath(params.asemd_init))            \
+    | map { name, mode, init -> ["$params.remd_tag/$name-$init.baseName", mode, init, params.remd_flags]} \
+    | aseEMD
+}
+
 
 //========================================//
 // Extract Feature and Perform Clustering //
