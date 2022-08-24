@@ -61,8 +61,8 @@ params.datasets = './datasets/*.{yml,tfr}'
 params.pinn_inp = './skel/pinn/*.yml'
 params.asemd_init = './skel/init/*.xyz'
 params.repeats = 5
-params.adam_flags = '--train-steps 5000000 --log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 1000 --init --no-cache'
-params.ekf_flags = '--train-steps 500000 --log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 1000 --init --no-cache'
+params.adam_flags = '--train-steps 3000000 --log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 2000 --no-cache'
+params.ekf_flags = '--train-steps 500000 --log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 2000 --no-cache'
 params.ase_flags = '--ensemble nvt --T 300 --t 1 --dt 0.5 --log-every 20'
 
 workflow train {
