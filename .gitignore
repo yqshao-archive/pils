@@ -8,4 +8,5 @@
 /skel/cp2k-aux/
 /latent
 .ipynb_checkpoints/
+__pycache__/
 /notebooks/*.png
