@@ -29,9 +29,14 @@ include { aseMD } from './tips/nextflow/ase.nf' addParams(publish: 'trajs/emd')
 workflow ebmd {
   presets = [
     ['nobias', ''],
-    ['bias10', ' --bias heaviside --kb 10'],
-    ['bias100', ' --bias heaviside --kb 100'],
-    ['bias500', ' --bias heaviside --kb 500'],
+    ['bias1', ' --bias heaviside --kb 1'],
+    ['bias001', ' --bias heaviside --kb 0.01'],
+    // ['bias01', ' --bias heaviside --kb 0.1'],
+    // ['bias3', ' --bias heaviside --kb 3'],
+    //['bias10', ' --bias heaviside --kb 10'],
+    // ['bias30', ' --bias heaviside --kb 30'],
+    // ['bias100', ' --bias heaviside --kb 100'],
+    // ['bias500', ' --bias heaviside --kb 500'],
   ]
   md = '--ensemble nvt --T 340 --t 20 --dt 0.5 --log-every 20'
 
@@ -44,3 +49,28 @@ workflow ebmd {
            ["$params.base-gen$params.gen-$preset/$init.baseName", model, init, md+bias]} \
     | aseMD
 }
+
+params.bias = 'nobias'
+params.cp2k_aux = 'skel/cp2k-aux/*'
+
+include { cp2kGenInp } from './tips/nextflow/cp2k.nf' addParams(publish: 'geninp')
+include { cp2k } from './tips/nextflow/cp2k.nf' addParams(publish: 'trajs/cpsp')
+workflow label {
+  strategies = [
+    ['uniform', '-f asetraj --subsample --strategy uniform --nsample 40'],
+    ['forces', '-f asetraj --subsample --strategy sorted --nsample 40'],
+  ]
+
+  skel = file('./skel/cp2k/singlepoint.inp')
+  // all trajs from the  preset
+  channel.fromPath("trajs/emd/$params.base-gen$params.gen-$params.bias/*/asemd.traj") \
+    | map {traj -> ["${traj.parent.name}", traj]} \
+    | combine( channel.fromList(strategies) ) \
+    | map {name, traj, tag, flag ->  \
+           ["$params.base-gen$params.gen-$params.bias/$name/$tag", skel, traj, flag]} \
+    | cp2kGenInp \
+    | flatMap {name, inps -> inps.collect {["$name/$it.baseName", it]}}
+    | map {name, inp -> [name, inp, file(params.cp2k_aux)]}
+    | cp2k
+}
+
