@@ -16,16 +16,16 @@ nextflow.preview.recursion=true
 // - [ ] sanity check for crictical params: [ens_size, geo_size, sp_points]
 //
 //                                          written by  Yunqi Shao, first ver. 2022.Aug.29
-// =======================================================================================
+//========================================================================================
 
 // Initial Configraitons =================================================================
-params.proj         = 'uniform-bias1'
+params.proj         = 'exp/ekf-bias1'
 params.restart_from = false
 params.init_geo     = 'skel/init/*.xyz'
-params.init_model   = 'models/pils-v5-ekf-v3-*/model'
+params.init_model   = 'skel/pinn/pinet-ekf.yml'
 params.init_ds      = 'datasets/pils-v5-filtered.{yml,tfr}'
-params.init_time    = 1
-params.init_steps   = 500000
+params.init_time    = 1.0
+params.init_steps   = 100000
 params.ens_size     = 5
 params.geo_size     = 6
 params.sp_points    = 50
@@ -39,9 +39,11 @@ include { pinnTrain } from './tips/nextflow/pinn.nf' addParams(publish: "$params
 //========================================================================================
 
 // Ietrartion options ====================================================================
-params.ftol         = 0.200
-params.etol         = 0.010
-params.retrain_step = 30000
+params.frmsetol     = 0.200
+params.ermsetol     = 0.005
+params.fmaxtol      = 0.800
+params.emaxtol      = 0.020
+params.retrain_step = 50000
 params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 50'
 // w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 50'
 params.old_flag     = '--nsample 2700'
@@ -60,7 +62,7 @@ params.cp2k_aux     = 'skel/cp2k-aux/*'
 
 // Main Iteration and Loops ==============================================================
 workflow {
-  println ("Entering TIPS Active Sampler - Proj. Title: $params.proj")
+  println("Entering TIPS Active Sampler - Proj. Title: $params.proj")
   // Setup initial training inputs
   init_ds = file(params.init_ds)
   init_geo = file(params.init_geo)
@@ -101,11 +103,11 @@ workflow {
   steps = params.init_steps.toInteger()
   time = params.init_time.toFloat()
   init_inp = [init_gen, init_geo, init_ds, init_models, steps, time, converge]
-  al_iter.recurse(channel.value(init_inp)).times(5)
+  al.recurse(channel.value(init_inp)).times(10)
 }
 
 // Loop for each iteration =================================================================
-workflow al_iter {
+workflow al {
   take: ch_inp
 
   main:
@@ -121,7 +123,10 @@ workflow al_iter {
 
   ch_model.retrain.transpose(by:[1,3]) \
     | map {gen, model, ds, seed, steps -> \
-           ["gen$gen/model$seed", ds, model, params.train_flags+" --seed $seed --train-steps $steps"]}\
+           ["gen$gen/model$seed", ds, model,
+            params.train_flags+
+            " --seed $seed --train-steps $steps"+
+            (gen.toInteger()==0?' --no-cache':'')]}\
     | pinnTrain
 
   pinnTrain.out.model \
@@ -212,7 +217,7 @@ workflow al_iter {
 process mixDS {
   tag "gen$gen"
   label 'tips'
-  input: tuple val(gen), path(newDS, stageAs:'*.traj'), path(oldDS), val(newFlag), val(oldFlag)
+  input: tuple val(gen), path(newDS, stageAs:'*.traj'), path(oldDS, stageAs:'old/*'), val(newFlag), val(oldFlag)
   output: tuple val(gen), path('mix-ds.{tfr,yml}')
 
   script:
@@ -251,8 +256,10 @@ process checkConverge {
   tuple val(name), path('*.xyz'), stdout
 
   script:
-  ftol = params.ftol
-  etol = params.etol
+  fmaxtol = params.fmaxtol
+  emaxtol = params.emaxtol
+  frmsetol = params.frmsetol
+  ermsetol = params.ermsetol
   """
   #!/usr/bin/env python
   import numpy as np
@@ -268,19 +275,21 @@ process checkConverge {
   e_pred = np.array([traj[i]['energy']/len(traj[i]['elem']) for i in idx])
   f_pred = np.array([traj[i]['force'] for i in idx])
 
-  ecnt = np.sum(np.abs(e_pred-e_label)>$etol)
-  fcnt = np.sum(np.any(np.abs(f_pred-f_label)>$ftol,axis=(1,2)))
-  converged = (ecnt==0) and (fcnt==0)
-
+  ecnt = np.sum(np.abs(e_pred-e_label)>$emaxtol)
+  fcnt = np.sum(np.any(np.abs(f_pred-f_label)>$fmaxtol,axis=(1,2)))
+  emax = np.max(np.abs(e_pred-e_label))
+  fmax = np.max(np.abs(f_pred-f_label))
   ermse = np.sqrt(np.mean((e_pred-e_label)**2))
   frmse = np.sqrt(np.mean((f_pred-f_label)**2))
+  converged = (emax<$emaxtol) and (fmax<$fmaxtol) and (ermse<$ermsetol) and (frmse<$frmsetol)
 
   geoname = "$name".split('/')[1]
   if converged:
       msg = f'Converged; will restart from latest frame.'
       traj[-1:].convert(f'{geoname}.xyz', fmt='extxyz')
   else:
-      msg = f'energy: {ecnt}/{len(idx)} failed, rmse={ermse:.2e}; force {fcnt}/{len(idx)} failed, rmse={frmse:.2e}.'
+      msg = f'energy: {ecnt}/{len(idx)} failed, max={emax:.2f} rmse={ermse:.2f}; '\
+            f'force: {fcnt}/{len(idx)} failed, max={fmax:.2f} rmse={frmse:.2f}.'
       traj[:1].convert(f'{geoname}.xyz', fmt='extxyz')
   print(msg)
   """

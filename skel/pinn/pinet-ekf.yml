@@ -2,14 +2,14 @@ model:
   name: potential_model
   params:
     e_dress:
-      1: 0.0
-      6: 0.0
-      7: 0.0
-      8: 0.0
+      1: -6.390549397295361
+      6: -3.834329638377216
+      7: -1.278109879459072
+      8: -1.278109879459072
     e_loss_multiplier: 10
     e_scale: 27.2114
     e_unit: 27.2114
-    f_loss_multiplier: 1000
+    f_loss_multiplier: 3000
     log_e_per_atom: true
     separate_errors: true
     use_e_per_atom: false

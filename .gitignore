@@ -11,3 +11,4 @@
 __pycache__/
 /notebooks/*.png
 /notebooks/*.xyz
+/exp
