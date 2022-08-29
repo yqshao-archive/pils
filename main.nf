@@ -67,23 +67,24 @@ workflow {
   println("  inital Dataset: ${init_ds.name};")
   println("  ${params.geo_size} geometries to start sampling with;")
 
+  ens_size = params.ens_size.toInteger()
   if (params.restart_from) {
     init_gen = $params.restart_from
     init_models = file("$params.proj/models/$gen/*/model")
-    assert params.ens_size == init_models.size() : "ens_size does not match input"
+    assert ens_size == init_models.size() : "ens_size does not match input"
     converge = true
     println("  restarting from gen$gen ensemble of size $ens_size;")
   } else{
     init_gen = '0'
     init_models = file(params.init_model, type:'any')
     if (!(init_models instanceof Path)) {
-      assert params.ens_size == init_models.size() : "ens_size does not match input"
+      assert ens_size == init_models.size() : "ens_size does not match input"
       converge = true
-      println("  restarting from an ensemble of size $params.ens_size;")
+      println("  restarting from an ensemble of size $ens_size;")
     } else {
-      ens_size = params.init_seeds
+      println("  starting from scratch with the input $init_models.name of size $ens_size;")
+      init_models = [init_models] * ens_size
       converge = false
-      println("  starting from scratch with the input $init_models.name of size $param.ens_size;")
     }
   }
 
@@ -166,7 +167,7 @@ workflow al_iter {
   checkConverge.out \
     | map{name,geo,msg-> \
           [(name=~/gen(\d+)\/.+/)[0][1], geo, msg.contains('Converged')]} \
-    | groupTuple(size:params.geo_size) \
+    | groupTuple(size:params.geo_size.toInteger()) \
     | map {gen, geo, conv -> [gen, geo, conv.every()]}
     | set {nx_geo_converge}
 
@@ -176,7 +177,7 @@ workflow al_iter {
   ch_inp.map {[it[0], it[2]]}.set{ ch_old_ds }
   ch_new_ds \
     | map {name, idx, ds -> [(name=~/gen(\d+)\/.+/)[0][1], ds]} \
-    | groupTuple(size:params.geo_size) \
+    | groupTuple(size:params.geo_size.toInteger()) \
     | join(ch_old_ds) \
     | map {it+[params.new_flag, params.old_flag]} \
     | mixDS \
