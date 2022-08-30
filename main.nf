@@ -19,13 +19,13 @@ nextflow.preview.recursion=true
 //========================================================================================
 
 // Initial Configraitons =================================================================
-params.proj         = 'exp/ekf-bias1'
+params.proj         = 'exp/ekf-nobias'
 params.restart_from = false
 params.init_geo     = 'skel/init/*.xyz'
-params.init_model   = 'skel/pinn/pinet-ekf.yml'
+params.init_model   = 'models/pils-v5-ekf-v3-gen0-seed*/model'
 params.init_ds      = 'datasets/pils-v5-filtered.{yml,tfr}'
 params.init_time    = 1.0
-params.init_steps   = 100000
+params.init_steps   = 500000
 params.ens_size     = 5
 params.geo_size     = 6
 params.sp_points    = 50
@@ -54,8 +54,8 @@ params.min_time     = 1.0
 
 // Model specific flags ==================================================================
 params.train_flags  = '--log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
-// params.md_flags     = '--ensemble nvt --T 300 --dt 0.5 --log-every 20'
-params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20 --bias heaviside --kb 1'
+params.md_flags     = '--ensemble nvt --T 300 --dt 0.5 --log-every 20'
+// params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20 --bias heaviside --kb 1'
 params.cp2k_inp     = './skel/cp2k/singlepoint.inp'
 params.cp2k_aux     = 'skel/cp2k-aux/*'
 //========================================================================================
@@ -71,11 +71,12 @@ workflow {
 
   ens_size = params.ens_size.toInteger()
   if (params.restart_from) {
-    init_gen = $params.restart_from
-    init_models = file("$params.proj/models/$gen/*/model")
-    assert ens_size == init_models.size() : "ens_size does not match input"
+    init_gen = params.restart_from.toString()
+    init_models = file("${params.proj}/models/gen${init_gen}/*/model", type:'dir')
+    assert ens_size == init_models.size : "ens_size ($ens_size) does not match input ($init_models.size)"
     converge = true
-    println("  restarting from gen$gen ensemble of size $ens_size;")
+    println("  restarting from gen$init_gen ensemble of size $ens_size;")
+    // TODO here one should perhaps remove the old directories
   } else{
     init_gen = '0'
     init_models = file(params.init_model, type:'any')
@@ -222,7 +223,7 @@ process mixDS {
 
   script:
   """
-  tips subsample ${oldDS[0].baseName}.yml -f pinn -o old-ds -of asetraj $oldFlag
+  tips subsample old/${oldDS[0].baseName}.yml -f pinn -o old-ds -of asetraj $oldFlag
   tips convert ${newDS.join(' ')} -f asetraj -o tmp.traj -of asetraj
   tips subsample tmp.traj -f asetraj -o new-ds -of asetraj $newFlag
   tips convert new-ds.traj old-ds.traj -f asetraj -o mix-ds -of pinn --shuffle
