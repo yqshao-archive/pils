@@ -105,10 +105,10 @@ workflow remd {
   //   | aseMD
 
   models
-    | map {name, model -> [(name =~ /(.*)-\d/)[0][1], model]} \
+    | map {name, model -> [(name =~ /(.*)\d/)[0][1], model]} \
     | groupTuple                                              \
     | combine(channel.fromPath(params.asemd_init))            \
-    | map { name, model, init -> ["$params.remd_tag/$name-$init.baseName", model, init, params.remd_flags]} \
+    | map { name, model, init -> ["$params.remd_tag/$init.baseName", model, init, params.remd_flags]} \
     | aseEMD
 }
 
