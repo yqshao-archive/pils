@@ -7,7 +7,7 @@ process hbonds {
   label 'local'
 
   input:
-  tuple val(name), path(cp2kproj)
+  tuple val(name), path(dataset)
 
   output:
   path '*.npy'
@@ -103,7 +103,11 @@ process hbonds {
 
       return xax_info, pop_info[None, :]
 
-  ds = load_ds("$cp2kproj/cp2k-md", fmt="cp2k", cp2k_frc="", cp2k_ener="")
+  dataset = "$dataset"
+  if 'traj' in dataset:
+      ds = load_ds(dataset, fmt="asetraj")
+  else:
+      ds = load_ds(dataset, fmt="cp2k", cp2k_frc="", cp2k_ener="")
   all_xax, all_pop = np.zeros([0,5]), np.zeros([0,10])
   for idx, datum in enumerate(ds[::]):
       xax_info, pop_info = process_datum(idx, datum)
@@ -116,9 +120,18 @@ process hbonds {
 }
 
 params.cp2k_projs = './trajs/cp2k/nvt*ps/hoac-*/'
+params.al_trajs = './trajs/al-adam-gen5/nvt-340k-100ps/*/asemd.traj'
+params.which = 'al'
 
 workflow {
-  channel.fromPath(params.cp2k_projs, type:'dir') \
-    | map {proj -> ["${proj.parent.name}/${proj.name}", proj]} \
-    | hbonds
+  if (params.which=='al') {
+     channel.fromPath(params.al_trajs) \
+       | map {traj -> ["${traj.parent.parent.parent.name}/${traj.parent.parent.name}/${traj.parent.name}", traj]} \
+       | hbonds
+  }
+  if (params.which=='cp2k') {
+     channel.fromPath(params.cp2k_projs, type:'dir') \
+       | map {proj -> ["${proj.parent.name}/${proj.name}", proj]} \
+       | hbonds
+  }
 }
