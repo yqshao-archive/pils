@@ -219,6 +219,7 @@ workflow al {
 process mixDS {
   tag "gen$gen"
   label 'tips'
+  publishDir "$params.proj/mixed/gen$gen"
   input: tuple val(gen), path(newDS, stageAs:'*.traj'), path(oldDS, stageAs:'old/*'), val(newFlag), val(oldFlag)
   output: tuple val(gen), path('mix-ds.{tfr,yml}')
 
@@ -235,7 +236,7 @@ process mixDS {
 process mergeDS {
   tag "$name"
   label 'tips'
-  publishDir "$params.proj/subset/$name"
+  publishDir "$params.proj/merge/$name"
   input: tuple val(name), val(idx), path(logs, stageAs:'*.log')
   output: tuple val(name), path('merged.idx'), path('merged.traj')
 
@@ -249,7 +250,7 @@ process mergeDS {
 process checkConverge {
   tag "$name"
   label 'tips'
-  publishDir "$params.proj/geo/$name"
+  publishDir "$params.proj/check/$name"
 
   input:
   tuple val(name), path(idx), path(logs), path(traj)
