@@ -19,12 +19,12 @@ nextflow.preview.recursion=true
 //========================================================================================
 
 // Initial Configraitons =================================================================
-params.proj         = 'exp/ekf-nobias'
+params.proj         = 'exp/ekf-v2'
 params.restart_from = false
 params.init_geo     = 'skel/init/*.xyz'
-params.init_model   = 'models/pils-v5-ekf-v3-gen0-seed*/model'
-params.init_ds      = 'datasets/pils-v5-filtered.{yml,tfr}'
-params.init_time    = 1.0
+params.init_model   = 'skel/pinn/pinet-ekf.yml'
+params.init_ds      = 'datasets/pils-40ns-fil.{yml,tfr}'
+params.init_time    = 0.5
 params.init_steps   = 500000
 params.ens_size     = 5
 params.geo_size     = 6
@@ -43,13 +43,14 @@ params.frmsetol     = 0.200
 params.ermsetol     = 0.005
 params.fmaxtol      = 0.800
 params.emaxtol      = 0.020
+params.filters      = "--filter 'peratom(energy)<-125.19' --filter 'abs(force)<4'"
 params.retrain_step = 50000
 params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 50'
 // w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 50'
 params.old_flag     = '--nsample 2700'
-params.new_flag     = '--nsample 300'
+params.new_flag     = '--psample 100'
 params.acc_fac      = 2.0
-params.min_time     = 1.0
+params.min_time     = 0.5
 //========================================================================================
 
 // Model specific flags ==================================================================
@@ -241,7 +242,7 @@ process mergeDS {
   script:
   """
   printf "${idx.join('\\n')}" > merged.idx
-  tips convert ${logs.join(' ')} -f cp2klog -o merged -of asetraj
+  tips convert ${logs.join(' ')} -f cp2klog -o merged -of asetraj $params.filters
   """
 }
 
@@ -266,13 +267,20 @@ process checkConverge {
   import numpy as np
   from ase.io import read
   from tips.io import load_ds
+  from tips.io.filter import filters2fn
 
-  eunit = 27.2114 # hartree to eV, hardcoded for CP2K for now
+  filters = "$params.filters".split(' ')[1::2]
+  filter_fn = filters2fn(filter_fn)
+
   idx = [int(i) for i in np.loadtxt("$idx")]
   logs = load_ds("$logs", fmt='asetraj')
   traj = load_ds("$traj", fmt='asetraj')
-  e_label = np.array([datum['energy']/len(datum['elem']) for datum in logs])*eunit
-  f_label = np.array([datum['force'] for datum in logs])*eunit
+
+  idx, logs = tuple(zip(
+      i,datum for i, datum in zip(idx, log) if filter_fn(datum)))
+
+  e_label = np.array([datum['energy']/len(datum['elem']) for datum in logs])
+  f_label = np.array([datum['force'] for datum in logs])
   e_pred = np.array([traj[i]['energy']/len(traj[i]['elem']) for i in idx])
   f_pred = np.array([traj[i]['force'] for i in idx])
 
