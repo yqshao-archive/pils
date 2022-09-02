@@ -7,8 +7,8 @@ model:
       7: -1.278109879459072
       8: -1.278109879459072
     e_loss_multiplier: 10
-    e_scale: 27.2114
-    e_unit: 27.2114
+    e_scale: 1.0
+    e_unit: 1.0
     f_loss_multiplier: 1000
     log_e_per_atom: true
     separate_errors: true
