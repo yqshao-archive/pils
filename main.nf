@@ -23,9 +23,9 @@ params.proj         = 'exp/ekf-v2'
 params.restart_from = false
 params.init_geo     = 'skel/init/*.xyz'
 params.init_model   = 'skel/pinn/pinet-ekf.yml'
-params.init_ds      = 'datasets/pils-40ps-fil.{yml,tfr}'
-params.init_time    = 0.5
-params.init_steps   = 500000
+params.init_ds      = 'datasets/pils-40ps.{yml,tfr}'
+params.init_time    = 1.0
+params.init_steps   = 40000
 params.ens_size     = 5
 params.geo_size     = 6
 params.sp_points    = 50
@@ -43,8 +43,8 @@ params.frmsetol     = 0.200
 params.ermsetol     = 0.005
 params.fmaxtol      = 0.800
 params.emaxtol      = 0.020
-params.filters      = "--filter 'peratom(energy)<-125.19' --filter 'abs(force)<4'"
-params.retrain_step = 50000
+params.filters      = "--filter 'peratom(energy)<-125.1' --filter 'abs(force)<10.0'"
+params.retrain_step = 20000
 params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 50'
 // w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 50'
 params.old_flag     = '--nsample 2700'
@@ -55,7 +55,7 @@ params.min_time     = 0.5
 
 // Model specific flags ==================================================================
 params.train_flags  = '--log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
-params.md_flags     = '--ensemble nvt --T 300 --dt 0.5 --log-every 20'
+params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20'
 // params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20 --bias heaviside --kb 1'
 params.cp2k_inp     = './skel/cp2k/singlepoint.inp'
 params.cp2k_aux     = 'skel/cp2k-aux/*'
@@ -228,7 +228,7 @@ process mixDS {
   tips subsample old/${oldDS[0].baseName}.yml -f pinn -o old-ds -of asetraj $oldFlag
   tips convert ${newDS.join(' ')} -f asetraj -o tmp.traj -of asetraj
   tips subsample tmp.traj -f asetraj -o new-ds -of asetraj $newFlag
-  tips convert new-ds.traj old-ds.traj -f asetraj -o mix-ds -of pinn --shuffle
+  tips convert new-ds.traj old-ds.traj -f asetraj -o mix-ds -of pinn --shuffle $params.filters
   rm {new-ds,old-ds,tmp}.*
   """
 }
@@ -243,7 +243,7 @@ process mergeDS {
   script:
   """
   printf "${idx.join('\\n')}" > merged.idx
-  tips convert ${logs.join(' ')} -f cp2klog -o merged -of asetraj $params.filters
+  tips convert ${logs.join(' ')} -f cp2klog -o merged -of asetraj
   """
 }
 
@@ -270,15 +270,15 @@ process checkConverge {
   from tips.io import load_ds
   from tips.io.filter import filters2fn
 
-  filters = "$params.filters".split(' ')[1::2]
-  filter_fn = filters2fn(filter_fn)
+  filters = "$params.filters".replace("'", '').split(' ')[1::2]
+  filter_fn = filters2fn(filters) # ^ a crude extractor
 
   idx = [int(i) for i in np.loadtxt("$idx")]
   logs = load_ds("$logs", fmt='asetraj')
   traj = load_ds("$traj", fmt='asetraj')
 
-  idx, logs = tuple(zip(
-      i,datum for i, datum in zip(idx, log) if filter_fn(datum)))
+  idx, logs = tuple(zip(*(
+      (i, datum) for (i, datum) in zip(idx, logs) if filter_fn(datum))))
 
   e_label = np.array([datum['energy']/len(datum['elem']) for datum in logs])
   f_label = np.array([datum['force'] for datum in logs])
