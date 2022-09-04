@@ -108,7 +108,7 @@ def extract_feature(model_dir, ds_path, take, batch):
     import yaml
     import numpy as np
     import tensorflow as tf
-    from pinn.io import load_runner, sparse_batch
+    from pinn.io import load_ds, sparse_batch
     from pinn import get_network
 
     tf.keras.backend.clear_session()
@@ -126,7 +126,7 @@ def extract_feature(model_dir, ds_path, take, batch):
     tmp_ckpt = save_tmp_ckpt(model_dir)
 
     # setup the network
-    dataset = load_runner(ds_path).take(take).apply(sparse_batch(batch))
+    dataset = load_ds(ds_path).take(take).apply(sparse_batch(batch))
     network = get_network(nn_spec)
     network(next(iter(dataset)))
     ckpt = tf.train.Checkpoint(**{v.name: v for v in network.variables})
@@ -171,5 +171,5 @@ flags = {
 }
 
 setup.update(flags)
-data = extract_feature("$model", "$ds", int(setup['take']), int(setup['batch']))
+data = extract_feature("$model", "${ds[0].baseName}.yml", int(setup['take']), int(setup['batch']))
 np.save('latent.npy', data[setup['key']])
