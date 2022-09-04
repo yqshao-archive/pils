@@ -24,11 +24,11 @@ params.restart_from = false
 params.init_geo     = 'skel/init/*.xyz'
 params.init_model   = 'skel/pinn/pinet-ekf.yml'
 params.init_ds      = 'datasets/pils-40ps.{yml,tfr}'
-params.init_time    = 1.0
+params.init_time    = 0.5
 params.init_steps   = 40000
-params.ens_size     = 5
+params.ens_size     = 3
 params.geo_size     = 6
-params.sp_points    = 50
+params.sp_points    = 25
 //========================================================================================
 
 // Imports (publish directories are set here) ============================================
@@ -39,18 +39,20 @@ include { pinnTrain } from './tips/nextflow/pinn.nf' addParams(publish: "$params
 //========================================================================================
 
 // Ietrartion options ====================================================================
-params.frmsetol     = 0.200
+params.frmsetol     = 0.150
 params.ermsetol     = 0.005
-params.fmaxtol      = 0.800
+params.fmaxtol      = 1.500
 params.emaxtol      = 0.020
 params.filters      = "--filter 'peratom(energy)<-125.1' --filter 'abs(force)<10.0'"
 params.retrain_step = 20000
-params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 50'
-// w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 50'
-params.old_flag     = '--nsample 2700'
-params.new_flag     = '--psample 100'
-params.acc_fac      = 2.0
+params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 25'
+// w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 25'
+params.old_flag     = '--nsample 2850'
+params.new_flag     = '--psample 100' // 6*25 = 150 pts per iter
+params.acc_fac      = 4.0
 params.min_time     = 0.5
+params.max_time     = 1000.0 // 0.5 2  8 32 128 512 | stop here
+params.max_gen      = 20     // 0   1  2  3   4   5
 //========================================================================================
 
 // Model specific flags ==================================================================
@@ -105,7 +107,8 @@ workflow {
   steps = params.init_steps.toInteger()
   time = params.init_time.toFloat()
   init_inp = [init_gen, init_geo, init_ds, init_models, steps, time, converge]
-  al.recurse(channel.value(init_inp)).times(10)
+  //                 0         1        2            3      4     5         6
+  al.recurse(channel.value(init_inp)).until{it[0].toInteger()>params.max_gen||it[5]>params.max_time}
 }
 
 // Loop for each iteration =================================================================
