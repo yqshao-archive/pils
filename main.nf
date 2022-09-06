@@ -28,7 +28,7 @@ params.init_time    = 0.5
 params.init_steps   = 40000
 params.ens_size     = 3
 params.geo_size     = 6
-params.sp_points    = 25
+params.sp_points    = 10
 //========================================================================================
 
 // Imports (publish directories are set here) ============================================
@@ -41,14 +41,14 @@ include { pinnTrain } from './tips/nextflow/pinn.nf' addParams(publish: "$params
 // Ietrartion options ====================================================================
 params.frmsetol     = 0.150
 params.ermsetol     = 0.005
-params.fmaxtol      = 1.500
+params.fmaxtol      = 2.000
 params.emaxtol      = 0.020
-params.filters      = "--filter 'peratom(energy)<-125.1' --filter 'abs(force)<10.0'"
+params.filters      = "--filter 'peratom(energy)<-125.1' --filter 'abs(force)<15.0'"
 params.retrain_step = 20000
-params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 25'
-// w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 25'
-params.old_flag     = '--nsample 2850'
-params.new_flag     = '--psample 100' // 6*25 = 150 pts per iter
+params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 10'
+// w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 10'
+params.old_flag     = '--nsample 440'
+params.new_flag     = '--psample 100' // 6*10 = 60 pts per iter
 params.acc_fac      = 4.0
 params.min_time     = 0.5
 params.max_time     = 1000.0 // 0.5 2  8 32 128 512 | stop here
@@ -266,10 +266,12 @@ process checkConverge {
   emaxtol = params.emaxtol
   frmsetol = params.frmsetol
   ermsetol = params.ermsetol
+  sp_points = params.sp_points
   """
   #!/usr/bin/env python
   import numpy as np
-  from ase.io import read
+  from ase import Atoms
+  from ase.io import read, write
   from tips.io import load_ds
   from tips.io.filter import filters2fn
 
@@ -294,16 +296,19 @@ process checkConverge {
   fmax = np.max(np.abs(f_pred-f_label))
   ermse = np.sqrt(np.mean((e_pred-e_label)**2))
   frmse = np.sqrt(np.mean((f_pred-f_label)**2))
-  converged = (emax<$emaxtol) and (fmax<$fmaxtol) and (ermse<$ermsetol) and (frmse<$frmsetol)
+  converged = (emax<$emaxtol) and (fmax<$fmaxtol) and (ermse<$ermsetol) and (frmse<$frmsetol) and (len(idx)==$sp_points)
 
   geoname = "$name".split('/')[1]
   if converged:
       msg = f'Converged; will restart from latest frame.'
-      traj[-1:].convert(f'{geoname}.xyz', fmt='extxyz')
+      new_geo = logs[np.argmax(idx)]
   else:
       msg = f'energy: {ecnt}/{len(idx)} failed, max={emax:.2f} rmse={ermse:.2f}; '\
             f'force: {fcnt}/{len(idx)} failed, max={fmax:.2f} rmse={frmse:.2f}.'
-      traj[:1].convert(f'{geoname}.xyz', fmt='extxyz')
+      new_geo = logs[np.argmin(idx)]
+  atoms = Atoms(new_geo['elem'], positions=new_geo['coord'], cell=new_geo['cell'],
+                pbc=True)
+  write(f'{geoname}.xyz', atoms)
   print(msg)
   """
 }

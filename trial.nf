@@ -116,7 +116,7 @@ workflow remd {
 //========================================//
 // Extract Feature and Perform Clustering //
 //========================================//
-params.models = 'exp/adam-v2/models/gen5/*/model'
+params.models = 'exp/adam-singlet-run1/models/gen6/*/model'
 params.latent_ds = 'datasets/pils-v6.{yml,tfr}'
 params.latent_flags = '--take 100'
 

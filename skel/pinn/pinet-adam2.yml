@@ -1,0 +1,38 @@
+model:
+  name: potential_model
+  params:
+    e_dress:
+      1: -173.89955652872723
+      6: -104.33973391723632
+      7: -34.77991130574543
+      8: -34.77991130574543
+    e_loss_multiplier: 10
+    e_scale: 1.0
+    e_unit: 1.0
+    f_loss_multiplier: 1000
+    log_e_per_atom: true
+    separate_errors: false
+    use_e_per_atom: false
+    use_force: true
+network:
+  name: PiNet
+  params:
+    rc: 5.5
+    depth: 4
+    n_basis: 10
+    basis_type: gaussian
+    atom_types: [1, 6, 7, 8]
+    ii_nodes:   [16, 16, 16]
+    pp_nodes:   [16, 16, 16]
+    pi_nodes:   [16]
+    out_nodes:  [16]
+optimizer:
+  class_name: Adam
+  config:
+    global_clipnorm: 0.01
+    learning_rate:
+      class_name: ExponentialDecay
+      config:
+        decay_rate: 0.994
+        decay_steps: 10000
+        initial_learning_rate: 0.0003
