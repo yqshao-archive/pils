@@ -87,6 +87,7 @@
         STEPSIZE 0.1
       &END OT
       &OUTER_SCF
+        EPS_SCF 1.0E-6
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
