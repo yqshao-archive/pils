@@ -10,7 +10,7 @@ process hbonds {
   tuple val(name), path(dataset)
 
   output:
-  path '*.npy'
+  path '*.{npy,dat}'
 
   script:
   """
@@ -47,7 +47,7 @@ process hbonds {
       n_mol, mol_assign = sparse.csgraph.connected_components(conMat[heavy, :][:, heavy])
       symbs = [str(atoms[heavy][mol_assign == mol_i].symbols) for mol_i in range(n_mol)]
       cnt_mol = [symbs.count(k) for k in set(symbs)]
-      assert set(symbs) == set(["C2O2", "CNC2NC"]), f"broken molecules: {set(symbs)}"
+      assert set(symbs) == set(["C2O2", "CNC2NC"]), f"broken molecules: {set(symbs)} @ {idx}"
       type_mol = np.array(["N" in symb for symb in symbs], int)
       # ======================= designate the barebond with the notion 0->[H]OAc; 1: [H]C1Mim
 
@@ -57,7 +57,7 @@ process hbonds {
       (hacid_r,) = np.where(atoms.numbers[h_n1a] == 8)
       (hbase_r,) = np.where(atoms.numbers[h_n1a] == 7)
       hactive_r = np.concatenate([hacid_r, hbase_r])
-      assert len(hactive_r) == 32, f"wrong number of active hydrogen"
+      assert len(hactive_r) == 32, f"wrong number of active hydrogen ({len(hactive_r)}) @ {idx}"
       # =====================================================================================
 
       # build the HB network ================================================================
@@ -93,7 +93,7 @@ process hbonds {
       # =====================================================================================
 
       # here one summarized the populations counts ==========================================
-      pop_info = np.zeros([10]) # frame_idx, n_ion, n_mol, HB2, HB3, ....
+      pop_info = np.zeros([10]) # frame_idx, n_mol, n_ion, HB2, HB3, ....
       pop_info[:3] = [idx, len(hacid_r), len(hbase_r)]
       for hb_i in range(n_hb):
           size_hb = sum(hb_assign == hb_i)
@@ -109,18 +109,27 @@ process hbonds {
   else:
       ds = load_ds(dataset, fmt="cp2k", cp2k_frc="", cp2k_ener="")
   all_xax, all_pop = np.zeros([0,5]), np.zeros([0,10])
+
+  faulty_frames = []
   for idx, datum in enumerate(ds[::]):
-      xax_info, pop_info = process_datum(idx, datum)
-      all_xax = np.append(all_xax, xax_info, axis=0)
-      all_pop = np.append(all_pop, pop_info, axis=0)
+      try:
+          xax_info, pop_info = process_datum(idx, datum)
+          all_xax = np.append(all_xax, xax_info, axis=0)
+          all_pop = np.append(all_pop, pop_info, axis=0)
+      except:
+          faulty_frames.append(idx)
+          # if len(faulty_frames)>=1000:
+          #     print(f"too many faulty frames: {faulty_frames}... aborting")
+          #     break
 
   np.save('xax.npy', all_xax)
   np.save('pop.npy', all_pop)
+  np.savetxt('faulty.dat', faulty_frames)
   """
 }
 
 params.cp2k_projs = './trajs/cp2k/nvt*ps/hoac-*/'
-params.al_trajs = './trajs/al-adam-gen5/nvt-340k-100ps/*/asemd.traj'
+params.al_trajs = './trajs/al-adam1-sin-run1-gen25/nvt-340k-512ps/*/asemd.traj'
 params.which = 'al'
 
 workflow {
