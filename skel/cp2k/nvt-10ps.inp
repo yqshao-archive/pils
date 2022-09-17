@@ -30,6 +30,12 @@
          MD 1
        &END EACH
      &END FORCES
+     &VELOCITIES ON
+       FORMAT XYZ
+       &EACH
+         MD 1
+       &END EACH
+     &END VELOCITIES
      &STRESS ON
        &EACH
          MD 1

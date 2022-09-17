@@ -19,7 +19,7 @@ params.lmp_inp = 'skel/lmp/init.in'
 
 workflow lmpinit {
   channel.fromList(params.tags.tokenize(','))               \
-    | combine (channel.fromList(params.rhos.tokenize(','))) \
+    | combine (channel.fromList(params.rhos.toString().tokenize(','))) \
     | map { tag, rho -> tag2inp(tag, rho) }                 \
     | moltemplate                                           \
     | map {name, aux -> [name, file(params.lmp_inp), aux]}  \
