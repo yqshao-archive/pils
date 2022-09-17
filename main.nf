@@ -19,14 +19,14 @@ nextflow.preview.recursion=true
 //========================================================================================
 
 // Initial Configraitons =================================================================
-params.proj         = 'exp/ekf-v2'
+params.proj         = 'exp/prod-adam-run0'
 params.restart_from = false
 params.init_geo     = 'skel/init/*.xyz'
-params.init_model   = 'skel/pinn/pinet-ekf.yml'
-params.init_ds      = 'datasets/pils-40ps.{yml,tfr}'
+params.init_model   = 'skel/pinn/pinet-adam.yml'
+params.init_ds      = 'datasets/pils-50ps.{yml,tfr}'
 params.init_time    = 0.5
-params.init_steps   = 40000
-params.ens_size     = 3
+params.init_steps   = 600000
+params.ens_size     = 1
 params.geo_size     = 6
 params.sp_points    = 10
 //========================================================================================
@@ -43,21 +43,25 @@ params.frmsetol     = 0.150
 params.ermsetol     = 0.005
 params.fmaxtol      = 2.000
 params.emaxtol      = 0.020
-params.filters      = "--filter 'peratom(energy)<-125.1' --filter 'abs(force)<15.0'"
-params.retrain_step = 20000
+params.filters      = "--filter 'peratom(energy)<-125.1' --filter 'abs(force)<100.0'"
+params.retrain_step = 300000
 params.label_flags  = '-f asetraj --subsample --strategy uniform --nsample 10'
-// w. force_std:    = '-f asetraj --subsample --strategy sorted --nsample 10'
-params.old_flag     = '--nsample 440'
+params.old_flag     = '--nsample 240' // 20% new data
 params.new_flag     = '--psample 100' // 6*10 = 60 pts per iter
 params.acc_fac      = 4.0
+params.brake_fac    = 1.0 // do not slow down
 params.min_time     = 0.5
-params.max_time     = 1000.0 // 0.5 2  8 32 128 512 | stop here
-params.max_gen      = 20     // 0   1  2  3   4   5
+params.max_time     = 1000.0 // 0.5 2  8 32 128 512 | stop at 1000 ns
+params.max_gen      = 30     // 0   1  2  3   4   5
+params.t_start      = 440
+params.t_end        = 340
+params.t_step       = 10
+params.exit_at_max_time = false
 //========================================================================================
 
 // Model specific flags ==================================================================
-params.train_flags  = '--log-every 1000 --ckpt-every 10000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
-params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20'
+params.train_flags  = '--log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
+params.md_flags     = '--ensemble nvt --dt 0.5 --log-every 20'
 // params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20 --bias heaviside --kb 1'
 params.cp2k_inp     = './skel/cp2k/singlepoint.inp'
 params.cp2k_aux     = 'skel/cp2k-aux/*'
@@ -108,7 +112,8 @@ workflow {
   time = params.init_time.toFloat()
   init_inp = [init_gen, init_geo, init_ds, init_models, steps, time, converge]
   //                 0         1        2            3      4     5         6
-  al.recurse(channel.value(init_inp)).until{it[0].toInteger()>params.max_gen||it[5]>params.max_time}
+  al.recurse(channel.value(init_inp))
+    .until{ it[0].toInteger()>params.max_gen || (it[5]>=params.max_time.toFloat() && params.exit_at_max_time) }
 }
 
 // Loop for each iteration =================================================================
@@ -143,11 +148,14 @@ workflow al {
   //=======================================================================================
 
   // sampling with ensable NN =============================================================
+  t_start = params.t_start.toFloat()
+  t_end = params.t_end.toFloat()
+  t_step = params.t_step.toFloat()
   ch_inp | map {[it[0], it[1], it[5]]} | transpose | set {ch_init_t} // init and time
   nx_models \
     | combine (ch_init_t, by:0)  \
     | map {gen, models, init, t -> \
-           ["gen$gen/$init.baseName", models, init, params.md_flags+" --t $t"]} \
+           ["gen$gen/$init.baseName", models, init, params.md_flags+" --t $t"+" --T ${Math.max(t_end, t_start-gen.toInteger()*t_step)}"]} \
     | aseMD
   aseMD.out.traj.set {ch_trajs}
   //=======================================================================================
@@ -199,7 +207,9 @@ workflow al {
   ch_inp.map{[it[0], it[5]]}.set {nx_time}
 
   acc_fac = params.acc_fac.toFloat()
+  brake_fac = params.brake_fac.toFloat()
   min_time = params.min_time.toFloat()
+  max_time = params.max_time.toFloat()
   retrain_step = params.retrain_step.toInteger()
 
   nx_geo_converge | join(nx_models) | join(nx_ds) | join(nx_time) | join (nx_step) \
@@ -207,7 +217,7 @@ workflow al {
            [(gen.toInteger()+1).toString(),
             geo, ds, models, \
             converge ? step : step+retrain_step, \
-            converge ? time*acc_fac : Math.max(time/acc_fac, min_time), \
+            converge ? Math.min(time*acc_fac, max_time) : Math.max(time*brake_fac, min_time), \
             converge]} \
     | view {'-'*80+'\n'+ \
             "[gen${it[0]}] next time scale ${it[5]} ps, ${it[6] ? 'no training planned' : 'next training step '+it[4]}."} \
