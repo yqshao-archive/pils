@@ -45,7 +45,6 @@
        &EACH
          MD 1
        &END EACH
-       FILENAME cell
      &END CELL
    &END PRINT
 &END MOTION
