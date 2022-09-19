@@ -21,7 +21,7 @@ nextflow.preview.recursion=true
 // Initial Configraitons =================================================================
 params.proj         = 'exp/prod-adam-run0'
 params.restart_from = false
-params.init_geo     = 'skel/init/*.xyz'
+params.init_geo     = 'skel/init/cp2k-geo/*.xyz'
 params.init_model   = 'skel/pinn/pinet-adam.yml'
 params.init_ds      = 'datasets/pils-50ps.{yml,tfr}'
 params.init_time    = 0.5
