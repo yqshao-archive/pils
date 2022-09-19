@@ -21,6 +21,7 @@ nextflow.preview.recursion=true
 // Initial Configraitons =================================================================
 params.proj         = 'exp/prod-adam-run0'
 params.restart_from = false
+params.restart_conv = false
 params.init_geo     = 'skel/init/cp2k-geo/*.xyz'
 params.init_model   = 'skel/pinn/pinet-adam.yml'
 params.init_ds      = 'datasets/pils-50ps.{yml,tfr}'
@@ -81,8 +82,10 @@ workflow {
     init_gen = params.restart_from.toString()
     init_models = file("${params.proj}/models/gen${init_gen}/*/model", type:'dir')
     assert ens_size == init_models.size : "ens_size ($ens_size) does not match input ($init_models.size)"
-    converge = true
+    converge = params.restart_conv.toBoolean()
     println("  restarting from gen$init_gen ensemble of size $ens_size;")
+    init_gen = (init_gen.toInteger()+1).toString()
+    // always use a new generation when restarting
     // TODO here one should perhaps remove the old directories
   } else{
     init_gen = '0'
