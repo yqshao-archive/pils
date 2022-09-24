@@ -27,13 +27,16 @@ process hbonds {
 
       (heavy,) = np.where(atoms.numbers != 1)
       (hydro,) = np.where(atoms.numbers == 1)
+      (nitro,) = np.where(atoms.numbers == 7)
+      (oxyge,) = np.where(atoms.numbers == 8)
+      O_act = oxyge # all oxygen are active
       natoms = len(atoms)
-      heavya2r = lambda x: heavy.tolist().index(x)
+      heavy2r = {k:i for i,k in enumerate(heavy)}
 
       cutoff = {
           ("H", "C"): 2,
-          ("H", "N"): 2,
-          ("H", "O"): 2,
+          ("H", "N"): 4,
+          ("H", "O"): 4,
           ("C", "C"): 2,
           ("C", "N"): 2,
           ("C", "O"): 2,
@@ -44,34 +47,49 @@ process hbonds {
       conMat = sparse.dok_matrix((natoms, natoms), dtype=np.int8)
       conMat[nl_i, nl_j] = 1  # we have several running indices here prefixed by (nl, mol, h)
       conMat[nl_j, nl_i] = 1  # v---- shamelessly taken from the ase documentation
-      n_mol, mol_assign = sparse.csgraph.connected_components(conMat[heavy, :][:, heavy])
-      symbs = [str(atoms[heavy][mol_assign == mol_i].symbols) for mol_i in range(n_mol)]
-      cnt_mol = [symbs.count(k) for k in set(symbs)]
-      assert set(symbs) == set(["C2O2", "CNC2NC"]), f"broken molecules: {set(symbs)} @ {idx}"
-      type_mol = np.array(["N" in symb for symb in symbs], int)
-      # ======================= designate the barebond with the notion 0->[H]OAc; 1: [H]C1Mim
 
-      # attaching hydrogen to the heavy atoms, here we count the ions ======================
-      h_n1a = np.array([nl_j[nl_i == h_ia][np.argmin(nl_d[nl_i == h_ia])] for h_ia in hydro])
-      # ^----- naming scheme n1: first neighbor, a: abolute indices (instead of relative)
+      n_mol, mol_assign = sparse.csgraph.connected_components(conMat[heavy, :][:, heavy])
+      mol_sets = [heavy[mol_assign == mol_i] for mol_i in range(n_mol)]
+      CN_N = np.squeeze(np.asarray(conMat[nitro, :][:, heavy].sum(axis=1)))
+      N_act = nitro[CN_N==2]
+      ALL_act = np.concatenate([O_act, N_act])
+      mol_acts = [np.intersect1d(mol_set, ALL_act) for mol_set in mol_sets]
+      type_mol = np.array([2-len(act) for act in mol_acts])
+
+      # -- zeros pass, tag active protons:
+      sel0 = [np.where(nl_i == h_ia)[0] for h_ia in hydro]
+      h_n0a = np.array([nl_j[_sel][np.argmin(nl_d[_sel])] for _sel in sel0])
+      H_act = hydro[np.in1d(h_n0a, ALL_act)]
+
+      # -- first pass, tag D(oners)
+      sel1 = [np.where(nl_i == h_ia)[0] for h_ia in H_act]
+      h_n1a = np.array([nl_j[_sel][np.argmin(nl_d[_sel])] for _sel in sel1])
       (hacid_r,) = np.where(atoms.numbers[h_n1a] == 8)
       (hbase_r,) = np.where(atoms.numbers[h_n1a] == 7)
-      hactive_r = np.concatenate([hacid_r, hbase_r])
-      assert len(hactive_r) == 32, f"wrong number of active hydrogen ({len(hactive_r)}) @ {idx}"
-      # =====================================================================================
+      h_n1e = atoms.numbers[h_n1a]
+      h_n1d = np.array([nl_d[_sel][np.argmin(nl_d[_sel])] for _sel in sel1])
+      D_mol = np.array([mol_assign[heavy2r[n1a]] for n1a in h_n1a])
+      h_act1 = [mol_acts[_di] for _di in D_mol]
+      D = np.concatenate([np.array(D_mol)[:,None], atoms.positions[h_n1a]], axis=1)
+      A_mol = np.setdiff1d(np.arange(n_mol), D_mol)
+
+      # -- second pass, make candidate neighbor for A
+      sel2 = [_sel[~np.in1d(nl_j[_sel], _act)] for _sel, _act in zip(sel1, h_act1)]
+      h_n2a = np.array([nl_j[_sel][np.argmin(nl_d[_sel])] for _sel in sel2])
 
       # build the HB network ================================================================
       hb_conn = sparse.dok_matrix((n_mol, n_mol), dtype=np.int8)
       hb_via = np.zeros((n_mol, n_mol))
-      for h_ir, h_ia in zip(hactive_r, hydro[hactive_r]):
+      for h_ir, h_ia in enumerate(h_n1a):
           if len(nl_j[nl_i == h_ia]) > 1: # nl is in abolute indices
               this_h = nl_i == h_ia
               h_n2a = nl_j[this_h][np.argsort(nl_d[this_h])[1]]
               if atoms.numbers[h_n2a] in [7, 8]:
-                  mol1 = mol_assign[heavya2r(h_n1a[h_ir])]
-                  mol2 = mol_assign[heavya2r(h_n2a)]
+                  mol1 = mol_assign[heavy2r[h_n1a[h_ir]]]
+                  mol2 = mol_assign[heavy2r[h_n2a]]
                   hb_conn[mol1, mol2] = 1 # <- connectitivy is symmetric
                   hb_conn[mol2, mol1] = 1 # v- via gives the distance to H, asymmetric
+                  print(mol1, mol2, nl_d[(nl_i == h_ia) & (nl_j == h_n1a[h_ir])])
                   hb_via[mol1, mol2] = nl_d[(nl_i == h_ia) & (nl_j == h_n1a[h_ir])]
                   hb_via[mol2, mol1] = nl_d[(nl_i == h_ia) & (nl_j == h_n2a)]
       n_hb, hb_assign = sparse.csgraph.connected_components(hb_conn)
@@ -105,22 +123,21 @@ process hbonds {
 
   dataset = "$dataset"
   if 'traj' in dataset:
-      ds = load_ds(dataset, fmt="asetraj")
+      ds = load_ds(dataset, fmt="asetraj", index='::10')
   else:
-      ds = load_ds(dataset, fmt="cp2k", cp2k_frc="", cp2k_ener="")
+      ds = load_ds(f"{dataset}/cp2k-md", fmt="cp2k", cp2k_frc="", cp2k_ener="")[::10]
   all_xax, all_pop = np.zeros([0,5]), np.zeros([0,10])
 
   faulty_frames = []
   for idx, datum in enumerate(ds[::]):
-      try:
-          xax_info, pop_info = process_datum(idx, datum)
-          all_xax = np.append(all_xax, xax_info, axis=0)
-          all_pop = np.append(all_pop, pop_info, axis=0)
-      except:
-          faulty_frames.append(idx)
-          # if len(faulty_frames)>=1000:
-          #     print(f"too many faulty frames: {faulty_frames}... aborting")
-          #     break
+      xax_info, pop_info = process_datum(idx, datum)
+      all_xax = np.append(all_xax, xax_info, axis=0)
+      all_pop = np.append(all_pop, pop_info, axis=0)
+      # except:
+      #     faulty_frames.append(idx)
+      #     # if len(faulty_frames)>=1000:
+      #     #     print(f"too many faulty frames: {faulty_frames}... aborting")
+      #     #     break
 
   np.save('xax.npy', all_xax)
   np.save('pop.npy', all_pop)
@@ -129,7 +146,7 @@ process hbonds {
 }
 
 params.cp2k_projs = './trajs/cp2k/nvt*ps/hoac-*/'
-params.al_trajs = './trajs/al-adam1-sin-run1-gen25/nvt-340k-512ps/*/asemd.traj'
+params.al_trajs = './trajs/al-adam1-sin-run1-gen31/nvt-340k-1ns/*/asemd.traj'
 params.which = 'al'
 
 workflow {
