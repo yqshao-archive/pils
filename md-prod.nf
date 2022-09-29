@@ -1,18 +1,27 @@
-params.pinn_models = './models/*/model'
-params.remd_tag = 'nvt-340k-100ps'
-params.remd_flags = '--ensemble nvt --T 340 --t 100 --dt 0.5 --log-every 20'
+params.exp = 'exp/trial-adam'
+params.gen = '31'
+params.init = 'skel/init/lmp-geo/{a32b32i0,a16b16i16,a0b0i32}-r{1.08,1.16}.xyz'
+params.md_from = 0
+params.md_tag = 'nvt-340k-5ns'
+params.md_flags = '--ensemble nvt --T 340 --t 5000 --dt 0.5 --log-every 200'
 
-workflow prod {
-  channel.fromPath(params.pinn_models, type:'dir') \
-    | map {model -> [model.parent.name, model]}    \
-    | set {models}
+include { aseMD } from './tips/nextflow/ase.nf' addParams(publish: "$params.exp/prod/gen$params.gen")
 
-  models
-    | map {name, model -> [(name =~ /(.*)\d/)[0][1], model]} \
-    | groupTuple                                              \
-    | combine(channel.fromPath(params.asemd_init))            \
-    | map { name, model, init -> ["$params.remd_tag/$init.baseName", model, init, params.remd_flags]} \
-    | aseEMD
+workflow prod_init {
+  channel.value(file("$params.exp/models/gen$params.gen/model*/model", type:'dir')) \
+    | combine(channel.fromPath(params.init)) \
+    | map { model, init -> ["${params.md_tag}-0/${init.baseName}", model, init, params.md_flags]} \
+    | aseMD
+}
+
+workflow prod_cont {
+  prev = params.md_from.toInteger()
+  next = prev + 1
+  restart = channel.fromPath("$params.exp/prod/gen$params.gen/$params.md_tag-$prev/*/asemd.traj")
+  channel.value(file("$params.exp/models/gen$params.gen/model*/model", type:'dir')) \
+    | combine(restart) \
+    | map { model, init -> ["${params.md_tag}-${next}/${init.parent.name}", model, init, params.md_flags]} \
+    | aseMD
 }
 
 params.cp2k_inp = 'skel/cp2k/nvt-10ps.inp'
