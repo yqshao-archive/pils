@@ -10,7 +10,7 @@ nextflow.enable.dsl=2
 //======================================//
 // THE GENERATION OF INITIAL GEOMETRIES //
 //======================================//
-include { moltemplate; tag2inp } from './nextflow/build.nf' addParams(publish: 'trajs/build')
+include { moltemplate; tag2inp } from './nf/build.nf' addParams(publish: 'trajs/build')
 include { lammpsMD } from './tips/nextflow/lammps.nf' addParams(publish: 'trajs/lmp')
 
 params.tags = 'a32b32i0,a0b0i32,a16b16i16'
