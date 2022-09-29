@@ -1,41 +1,29 @@
-// This file holds the custom analyis modules used in this project
 nextflow.enable.dsl=2
 
-// parameters
-params.ase_trajs = './trajs/ase/*/asemd.traj'
-
-// processes
-process ase_traj_fmax {
-  // simply extracts the max force components in each frame
-  publishDir "$publish"
-  label 'local'
-  cache false
-
+process compute_diff {
+  publishDir "analyses/$name"
   input:
-    path traj
-    val publish
+  tuple val(name), path(ds, stageAs:'ds??/*'), path(lib), val(flags)
 
   output:
-    path 'fmax.dat'
+  path '*.{npy,dat}'
 
   script:
-    """
-    #!/usr/bin/env python
-    import numpy as np
-    from ase.io import read
-
-    traj = read("$traj", index=':')
-    fmax = np.array([np.abs(a.get_forces()).max() for a in traj])
-    np.savetxt('fmax.dat', fmax)
-    """
+  """
+  python -m ${lib}.transport diff $ds $flags
+  """
 }
 
-// entry points
-workflow fmax {
-  ch = channel.fromPath(params.ase_trajs)
-    .multiMap {
-      traj: it
-      pub: "analyses/fmax/$it.parent.name"
-    }
-  ase_traj_fmax(ch.traj, ch.pub)
+process compute_rdf {
+  publishDir "analyses/$name"
+  input:
+  tuple val(name), path(ds, stageAs:'ds??/*'), path(lib), val(flags)
+
+  output:
+  path '*.{npy,dat}'
+
+  script:
+  """
+  python -m ${lib}.2drdf $ds $flags
+  """
 }
