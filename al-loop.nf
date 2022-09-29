@@ -62,7 +62,7 @@ params.exit_at_max_time = false
 
 // Model specific flags ==================================================================
 params.train_flags  = '--log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
-params.md_flags     = '--ensemble nvt --dt 0.5 --log-every 20'
+params.md_flags     = '--ensemble nvt --dt 0.5 --log-every 100' // every 0.05 ps
 // params.md_flags     = '--ensemble nvt --T 340 --dt 0.5 --log-every 20 --bias heaviside --kb 1'
 params.cp2k_inp     = './skel/cp2k/singlepoint.inp'
 params.cp2k_aux     = 'skel/cp2k-aux/*'
