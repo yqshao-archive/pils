@@ -78,10 +78,12 @@ workflow {
   println("  ${params.geo_size} geometries to start sampling with;")
 
   ens_size = params.ens_size.toInteger()
+  geo_size = params.geo_size.toInteger()
   if (params.restart_from) {
     init_gen = params.restart_from.toString()
     init_models = file("${params.proj}/models/gen${init_gen}/*/model", type:'dir')
-    assert ens_size == init_models.size : "ens_size ($ens_size) does not match input ($init_models.size)"
+    init_geo = file("${params.proj}/check/gen${init_gen}/*/*.xyz")
+    init_ds = file("${params.proj}/mixed/gen${init_gen}/mix-ds.{yml,tfr}")
     converge = params.restart_conv.toBoolean()
     println("  restarting from gen$init_gen ensemble of size $ens_size;")
     init_gen = (init_gen.toInteger()+1).toString()
@@ -91,15 +93,16 @@ workflow {
     init_gen = '0'
     init_models = file(params.init_model, type:'any')
     if (!(init_models instanceof Path)) {
-      assert ens_size == init_models.size() : "ens_size does not match input"
       converge = true
       println("  restarting from an ensemble of size $ens_size;")
     } else {
-      println("  starting from scratch with the input $init_models.name of size $ens_size;")
       init_models = [init_models] * ens_size
       converge = false
+      println("  starting from scratch with the input $init_models.name of size $ens_size;")
     }
   }
+  assert ens_size == init_models.size : "ens_size ($ens_size) does not match input ($init_models.size)"
+  assert geo_size == init_geo.size : "geo_size ($geo_size) does not match input ($init_geo.size)"
 
   // more info about the run
   println("  initial models will ${converge? 'not': ''} be trained before first sampling;")
