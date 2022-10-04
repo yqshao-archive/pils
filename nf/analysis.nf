@@ -1,7 +1,9 @@
 nextflow.enable.dsl=2
 
+params.publish = 'analyses'
+
 process compute_diff {
-  publishDir "analyses/$name"
+  publishDir "$params.publish/$name"
   input:
   tuple val(name), path(ds, stageAs:'ds??/*'), path(lib), val(flags)
 
@@ -15,7 +17,7 @@ process compute_diff {
 }
 
 process compute_rdf {
-  publishDir "analyses/$name"
+  publishDir "$params.publish/$name"
   input:
   tuple val(name), path(ds, stageAs:'ds??/*'), path(lib), val(flags)
 
