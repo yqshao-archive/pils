@@ -3,17 +3,17 @@
 //========================================//
 // Extract Feature and Perform Clustering //
 //========================================//
-params.models = 'exp/adam-singlet-run1/models/gen6/*/model'
-params.latent_ds = 'datasets/pils-v6.{yml,tfr}'
+params.proj = 'exp/trial-adam'
+params.gen = '31'
+params.latent_ds = 'datasets/pils-50ps.{yml,tfr}'
 params.latent_flags = '--take 100'
-
-include { extract_latent } from './nf/latent.nf'
+include { extract_latent } from './nf/latent.nf' addParams(publish: "$params.proj/analyses/latent")
 
 workflow latent {
-  Channel.fromPath(params.models, type:'dir')     \
+  Channel.fromPath("$params.proj/models/gen$params.gen/model1/model", type:'dir') \
     | combine(Channel.fromFilePairs(params.latent_ds)) \
     | map {model, dsname, ds ->                           \
-           ["${model.parent.name}-${dsname}", model, ds, params.latent_flags]} \
+           ["gen$params.gen", model, ds, params.latent_flags]} \
     | extract_latent
 }
 
