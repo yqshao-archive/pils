@@ -13,12 +13,11 @@ from tips.io import load_ds
 from tips.cli.common import load_opts
 from .hbnet import mktopo, cktopo
 
-def rmcom(old_pos, new_pos, cell, masses):
+def unwrap(old_pos, new_pos, cell):
     if old_pos is None:
         return new_pos
     else:
         new_pos -= np.rint((new_pos-old_pos)/cell)*cell
-        new_pos -= np.average(new_pos-old_pos, weights=masses, axis=0)
         return new_pos
 
 def mkmsd(cache, msd, cnt, pos, window):
@@ -74,10 +73,11 @@ def diff(
             prev_topo = cktopo(this_topo, prev_topo)
             h_act, o_act, n_act = this_topo
         cell = np.diag(datum['cell'])[None,:]
-        prev_pos = rmcom(prev_pos, datum['coord'], cell, masses)
-        h_pos = prev_pos[h_act]
-        o_pos = prev_pos[o_act]
-        n_pos = prev_pos[n_act]
+        prev_pos = unwrap(prev_pos, datum['coord'], cell)
+        rcom_pos = prev_pos - np.average(prev_pos, weights=masses, axis=0)
+        h_pos = rcom_pos[h_act]
+        o_pos = rcom_pos[o_act]
+        n_pos = rcom_pos[n_act]
         h_cache, h_msd, h_cnt = mkmsd(h_cache, h_msd, h_cnt, h_pos, window)
         o_cache, o_msd, o_cnt = mkmsd(o_cache, o_msd, o_cnt, o_pos, window)
         n_cache, n_msd, n_cnt = mkmsd(n_cache, n_msd, n_cnt, n_pos, window)
