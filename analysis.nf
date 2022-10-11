@@ -1,19 +1,21 @@
 #!/usr/bin/env nextflow
 
+params.proj = 'exp/prod-adam-run2'
+params.gens = '0,14,30' // all gen to latent analysis
+params.gen = '30' //final production gen
 //========================================//
 // Extract Feature and Perform Clustering //
 //========================================//
-params.proj = 'exp/trial-adam'
-params.gen = '31'
 params.latent_ds = 'datasets/pils-50ps.{yml,tfr}'
 params.latent_flags = '--take 100'
 include { extract_latent } from './nf/latent.nf' addParams(publish: "$params.proj/analyses/latent")
 
 workflow latent {
-  Channel.fromPath("$params.proj/models/gen$params.gen/model1/model", type:'dir') \
+  Channel.fromList(params.gen.tokenize(',')
+             .collect{g->[g, file("$params.proj/models/gen$g/model1/model", type:'dir')]}) \
     | combine(Channel.fromFilePairs(params.latent_ds)) \
-    | map {model, dsname, ds ->                           \
-           ["gen$params.gen", model, ds, params.latent_flags]} \
+    | map {g, model, dsname, ds ->                           \
+           ["gen$g", model, ds, params.latent_flags]} \
     | extract_latent
 }
 
@@ -36,8 +38,8 @@ Channel.fromPath('exp/trial-adam/cp2k-vali/nvt*ps/*/', type:'dir') \
                          paths.sort{p-> (p=~/-(\d+)ps/)[0][1].toInteger()}]} \
   | set {cp2k_vali}
 
-Channel.fromPath('exp/trial-adam/prod/gen31/nvt-340k-5ns-1/*/asemd.traj') \
-  | map {path -> [path.parent.name, path]} \
+Channel.fromPath("$params.proj/prod/gen$params.gen/nvt-*k-5ns-0/*/asemd.traj") \
+  | map {path -> ["${path.parent.parent.name}/${path.parent.name}", path]} \
   | set {pinn_prod}
 
 workflow msd {
@@ -45,20 +47,21 @@ workflow msd {
   msd0 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.01'])
   msd1 = Channel.of(['msd-10-50ps', '-w 30 -ts 10 -te 50 -s 0.01'])
   msd2 = Channel.of(['msd-5-10ns', '-w 4000 -te 5000 -s 1'])
+  msd3 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.1'])
 
-  cp2k_traj
+  cp2k_traj \
     | combine(msd0) \
-    | map {name, ds, msd, flag -> ["cp2k/$name-$msd", ds, lib, "-dt 0.0005 $flag"]} \
+    | map {name, ds, msd, flag -> ["cp2k/$name/$msd", ds, lib, "-dt 0.0005 $flag"]} \
     | set {msd_cp2k}
 
-  cp2k_vali
+  cp2k_vali \
     | combine(msd1) \
-    | map {name, ds, msd, flag -> ["vali/$name-$msd", ds, lib, "-dt 0.0005 $flag"]} \
+    | map {name, ds, msd, flag -> ["vali/$name/$msd", ds, lib, "-dt 0.0005 $flag"]} \
     | set {msd_vali}
 
-  pinn_prod
-    | combine(msd2) \
-    | map {name, ds, msd, flag -> ["trial/$name-$msd", ds, lib, "-dt 0.1 $flag"]} \
+  pinn_prod \
+    | combine(msd2.concat(msd3)) \
+    | map {name, ds, msd, flag -> ["prod/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
     | set {msd_prod}
 
   msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_diff
@@ -69,20 +72,21 @@ workflow rdf {
   rdf0 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.01'])
   rdf1 = Channel.of(['rdf-10-50ps', '-ts 10 -te 50 -s 0.01'])
   rdf2 = Channel.of(['rdf-5-10ns', '-te 5000 -s 1'])
+  rdf3 = Channel.of(['rdf-10-110ns', '-ts 10 -te 110 -s 0.1'])
 
-  cp2k_traj
+  cp2k_traj \
     | combine(rdf0) \
-    | map {name, ds, rdf, flag -> ["cp2k/$name-$rdf", ds, lib, "-dt 0.0005 $flag"]} \
+    | map {name, ds, rdf, flag -> ["cp2k/$name/$rdf", ds, lib, "-dt 0.0005 $flag"]} \
     | set {rdf_cp2k}
 
-  cp2k_vali
+  cp2k_vali \
     | combine(rdf1) \
-    | map {name, ds, rdf, flag -> ["vali/$name-$rdf", ds, lib, "-dt 0.0005 $flag"]} \
+    | map {name, ds, rdf, flag -> ["vali/$name/$rdf", ds, lib, "-dt 0.0005 $flag"]} \
     | set {rdf_vali}
 
-  pinn_prod
-    | combine(rdf2) \
-    | map {name, ds, rdf, flag -> ["trial/$name-$rdf", ds, lib, "-dt 0.1 $flag"]} \
+  pinn_prod \
+    | combine(rdf2.concat(rdf3)) \
+    | map {name, ds, rdf, flag -> ["prod/$name/$rdf", ds, lib, "-dt 0.1 $flag"]} \
     | set {rdf_prod}
 
   rdf_cp2k | concat(rdf_vali) | concat (rdf_prod) | compute_rdf
