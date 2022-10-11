@@ -26,9 +26,9 @@ workflow prod_cont {
 
 params.cp2k_inp = 'skel/cp2k/nvt-10ps.inp'
 params.cp2k_aux = 'skel/cp2k-aux/*'
-params.cp2k_geo = 'skel/init/trial-geo/*.xyz'
+params.cp2k_geo = 'skel/init/prod-geo/*.xyz'
 params.cp2k_from = '10'
-include { cp2kMD; cp2k } from './tips/nextflow/cp2k.nf' addParams(publish: 'exp/trial-adam/cp2k-vali')
+include { cp2kMD; cp2k } from './tips/nextflow/cp2k.nf' addParams(publish: 'exp/prod-adam-run2/cp2k-vali')
 
 workflow vali_init {
   channel.fromPath(params.cp2k_geo) \
@@ -39,7 +39,7 @@ workflow vali_init {
 
 workflow vali_cont {
   int from = params.cp2k_from.toInteger()
-  channel.fromPath("exp/trial-adam/cp2k-vali/nvt-${from-10}-${from}ps/*/cp2k-md-1_${2000*from}.restart") \
+  channel.fromPath("exp/prod-adam-run2/cp2k-vali/nvt-${from-10}-${from}ps/*/cp2k-md-1_${2000*from}.restart") \
     | map {it -> \
            ["nvt-${from}-${from+10}ps/${it.parent.name}", it, file(params.cp2k_aux)] }\
     | cp2k
