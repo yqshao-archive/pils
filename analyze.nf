@@ -3,15 +3,16 @@
 params.proj = 'exp/prod-adam-run2'
 params.gens = '0,14,30' // all gen to latent analysis
 params.gen = '30' //final production gen
+params.latent_ds = 'datasets/pils-50ps.{yml,tfr}'
+params.latent_flags = '--take 100'
+
 //========================================//
 // Extract Feature and Perform Clustering //
 //========================================//
-params.latent_ds = 'datasets/pils-50ps.{yml,tfr}'
-params.latent_flags = '--take 100'
 include { extract_latent } from './nf/latent.nf' addParams(publish: "$params.proj/analyses/latent")
 
 workflow latent {
-  Channel.fromList(params.gen.tokenize(',')
+  Channel.fromList(params.gens.tokenize(',')
              .collect{g->[g, file("$params.proj/models/gen$g/model1/model", type:'dir')]}) \
     | combine(Channel.fromFilePairs(params.latent_ds)) \
     | map {g, model, dsname, ds ->                           \
@@ -22,7 +23,7 @@ workflow latent {
 //========================//
 // Diffusion Coefficients //
 //========================//
-include { compute_diff; compute_rdf; compute_life } from './nf/analysis.nf' addParams(publish: "$params.proj/analyses")
+include { compute_msd; compute_rdf; compute_hbnet } from './nf/analysis.nf' addParams(publish: "$params.proj/analyses")
 
 Channel.fromPath('trajs/cp2k/nvt*ps/*{1.0753,1.1551}/', type:'dir') \
   | map {traj -> [traj.name, traj]} \
@@ -64,7 +65,7 @@ workflow msd {
     | map {name, ds, msd, flag -> ["prod/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
     | set {msd_prod}
 
-  msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_diff
+  msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_msd
 }
 
 workflow rdf {
@@ -92,26 +93,28 @@ workflow rdf {
   rdf_cp2k | concat(rdf_vali) | concat (rdf_prod) | compute_rdf
 }
 
-workflow {
-  msd()
-  rdf()
-}
-
-workflow life {
+workflow hbnet {
   lib = file('py', type:'dir')
   flag = '-w 30 -s 0.1'
 
   cp2k_traj \
     | map {name, ds -> ["cp2k/$name/", ds, lib, "-dt 0.0005 $flag"]} \
-    | set {life_cp2k}
+    | set {hbnet_cp2k}
 
   cp2k_vali \
     | map {name, ds -> ["vali/$name/", ds, lib, "-dt 0.0005 $flag"]} \
-    | set {life_vali}
+    | set {hbnet_vali}
 
   pinn_prod \
     | map {name, ds -> ["prod/$name/", ds, lib, "-dt 0.1 $flag"]} \
-    | set {life_prod}
+    | set {hbnet_prod}
 
-  life_cp2k | concat(life_vali) | concat (life_prod) | compute_life
+  hbnet_cp2k | concat(hbnet_vali) | concat (hbnet_prod) | compute_hbnet
+}
+
+workflow {
+  latent()
+  msd()
+  rdf()
+  hbnet()
 }

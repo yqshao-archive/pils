@@ -13,3 +13,4 @@ __pycache__/
 /notebooks/*.xyz
 /exp
 /notebooks/figs/
+/notebooks/*.tikz

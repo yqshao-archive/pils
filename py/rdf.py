@@ -4,7 +4,7 @@ import click
 import numpy as np
 from tips.io import load_ds
 from tips.cli.common import load_opts
-from .hbnet import mktopo, cktopo
+from .topo import mktopo, cktopo
 
 def mic_dist(pos1, pos2, cell):
     """Minimal image convention, assuming orthogonal cell"""

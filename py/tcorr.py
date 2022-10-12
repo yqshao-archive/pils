@@ -11,7 +11,7 @@ import click
 import numpy as np
 from tips.io import load_ds
 from tips.cli.common import load_opts
-from .hbnet import mktopo, cktopo
+from .topo import mktopo, cktopo
 
 def unwrap(old_pos, new_pos, cell):
     if old_pos is None:
@@ -35,7 +35,7 @@ def mkmsd(cache, msd, cnt, pos, window):
         cnt += np.sum(~np.isnan(new_msd), axis=1)
     return cache, msd, cnt
 
-@click.command(name="diff", short_help="self diffusion coefficients")
+@click.command(name="msd", short_help="self diffusion coefficients")
 @click.argument("dataset", nargs=-1)
 @load_opts
 @click.option('-w', '--window', default=10.0, help="correlation time window")
@@ -44,7 +44,7 @@ def mkmsd(cache, msd, cnt, pos, window):
 @click.option('-te', '--t-end', default=None, type=float, help="ending time, default is None")
 @click.option('-tc', '--t-check', default=1.0, help="interval to check the topology")
 @click.option('-dt', default=0.0005, help="time step of traj, default is 0.5fs")
-def diff(
+def msd(
         dataset, fmt, emap, # load_opts
         window, stride, t_start, t_end, t_check, dt,
 ):
@@ -85,7 +85,7 @@ def diff(
     np.save('msd.npy', np.array([t, h_msd/h_cnt, o_msd/o_cnt, n_msd/n_cnt]).T)
 
 
-@click.command(name="life", short_help="HB network and lifetime calculation")
+@click.command(name="hbnet", short_help="HB network and lifetime calculation")
 @click.argument("dataset", nargs=-1)
 @load_opts
 @click.option('-w', '--window', default=10.0, help="correlation time window")
@@ -93,12 +93,12 @@ def diff(
 @click.option('-ts', '--t-start', default=0.0, help="starting time")
 @click.option('-te', '--t-end', default=None, type=float, help="ending time, default is None")
 @click.option('-dt', default=0.0005, help="time step of traj, default is 0.5fs")
-def life(
+def hbnet(
         dataset, fmt, emap, # load_opts
         window, stride, t_start, t_end, dt,
 ):
     from ase.data import atomic_masses as am
-    def _set_correlation(cache, corr, cnt):
+    def mktcorr(cache, corr, cnt):
         """computes the odds of a set being present for a time span"""
         if cache[-1] is None: # skip if cache not completed
             return corr, cnt
@@ -135,11 +135,10 @@ def life(
         a_cache = [set(h_info[h_info[:,0]==0,1])] + a_cache[:-1]
         b_cache = [set(h_info[h_info[:,0]==1,1])] + b_cache[:-1]
         p_cache = [set(map(frozenset, pair_info[pair_info[:,0]==0,1:]))] + p_cache[:-1]
-        a_corr, a_cnt = _set_correlation(a_cache, a_corr, a_cnt)
-        b_corr, b_cnt = _set_correlation(b_cache, b_corr, b_cnt)
-        p_corr, p_cnt = _set_correlation(p_cache, p_corr, p_cnt)
-
-    np.savetxt('life.dat',
+        a_corr, a_cnt = mktcorr(a_cache, a_corr, a_cnt)
+        b_corr, b_cnt = mktcorr(b_cache, b_corr, b_cnt)
+        p_corr, p_cnt = mktcorr(p_cache, p_corr, p_cnt)
+    np.savetxt('persist.dat',
                np.array([np.arange(window)*stride*dt,
                          a_corr, b_corr, p_corr]).T)
     np.savetxt('hbnet.dat',
@@ -152,8 +151,8 @@ def life(
 def cli():
     """Transport coefficients in PILS"""
     pass
-cli.add_command(diff)
-cli.add_command(life)
+cli.add_command(msd)
+cli.add_command(hbnet)
 
 
 if __name__ == "__main__":
