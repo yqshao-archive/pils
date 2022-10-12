@@ -22,7 +22,7 @@ workflow latent {
 //========================//
 // Diffusion Coefficients //
 //========================//
-include { compute_diff; compute_rdf } from './nf/analysis.nf' addParams(publish: "$params.proj/analyses")
+include { compute_diff; compute_rdf; compute_life } from './nf/analysis.nf' addParams(publish: "$params.proj/analyses")
 
 Channel.fromPath('trajs/cp2k/nvt*ps/*{1.0753,1.1551}/', type:'dir') \
   | map {traj -> [traj.name, traj]} \
@@ -95,4 +95,23 @@ workflow rdf {
 workflow {
   msd()
   rdf()
+}
+
+workflow life {
+  lib = file('py', type:'dir')
+  flag = '-w 30 -s 0.1'
+
+  cp2k_traj \
+    | map {name, ds -> ["cp2k/$name/", ds, lib, "-dt 0.0005 $flag"]} \
+    | set {life_cp2k}
+
+  cp2k_vali \
+    | map {name, ds -> ["vali/$name/", ds, lib, "-dt 0.0005 $flag"]} \
+    | set {life_vali}
+
+  pinn_prod \
+    | map {name, ds -> ["prod/$name/", ds, lib, "-dt 0.1 $flag"]} \
+    | set {life_prod}
+
+  life_cp2k | concat(life_vali) | concat (life_prod) | compute_life
 }

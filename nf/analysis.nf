@@ -16,6 +16,20 @@ process compute_diff {
   """
 }
 
+process compute_life {
+  publishDir "$params.publish/$name"
+  input:
+  tuple val(name), path(ds, stageAs:'ds??/*'), path(lib), val(flags)
+
+  output:
+  path '*.{npy,dat}'
+
+  script:
+  """
+  python -m ${lib}.transport life $ds $flags
+  """
+}
+
 process compute_rdf {
   publishDir "$params.publish/$name"
   input:
