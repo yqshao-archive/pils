@@ -1,5 +1,5 @@
-params.exp = 'exp/trial-adam'
-params.gen = '31'
+params.exp = 'exp/prod-adam-run2'
+params.gen = '30'
 params.init = 'skel/init/lmp-geo/{a32b32i0,a16b16i16,a0b0i32}-r{1.08,1.16}.xyz'
 params.md_from = 0
 params.md_tag = 'nvt-340k-5ns'
