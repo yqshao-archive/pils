@@ -122,9 +122,9 @@ def life(
         ds = ds[start:end:stride]
 
     all_pop_info =  []
-    a_cache, b_cache, p_cache = [None]*window, [None]*window, [None]*window
-    a_cnt, b_cnt, p_cnt = 0, 0, 0
-    a_corr, b_corr, p_corr = 0, 0, 0
+    a_cache, b_cache, p_cache = [[None]*window for i in range(3)]
+    a_cnt, b_cnt, p_cnt = [0 for i in range(3)]
+    a_corr, b_corr, p_corr = [np.zeros(window, int) for i in range(3)]
     prev_topo= None
 
     for i, datum in enumerate(ds):
