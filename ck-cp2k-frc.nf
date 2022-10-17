@@ -32,7 +32,8 @@ workflow {
   ch_inps = Channel.fromList(
     [
       ['sp-prod', file('./skel/cp2k/singlepoint.inp')],
-      ['sp-tight', file('./skel/cp2k/sp-tight.inp')]
+      ['sp-tight', file('./skel/cp2k/sp-tight.inp')],
+      ['sp-hicut', file('./skel/cp2k/sp-hicut.inp')]
     ]
   )
   channel.of(file(params.ds)) \
