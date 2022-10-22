@@ -32,7 +32,7 @@ Channel.fromPath('trajs/cp2k/nvt*ps/*{1.0753,1.1551}/', type:'dir') \
                          paths.sort{p-> (p=~/-(\d+)ps/)[0][1].toInteger()}]} \
   | set {cp2k_traj}
 
-Channel.fromPath('exp/trial-adam/cp2k-vali/nvt*ps/*/', type:'dir') \
+Channel.fromPath('exp/prod-adam-run2/cp2k-vali/nvt*ps/*/', type:'dir') \
   | map {traj -> [traj.name, traj]} \
   | groupTuple \
   | map {name, paths -> [(name=~/(a\d+b\d+i\d+-r.*)/)[0][1], \
