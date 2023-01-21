@@ -1,0 +1,109 @@
+&GLOBAL
+  PROJECT cp2k-md
+  RUN_TYPE MD
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&MOTION
+   &MD
+      ENSEMBLE NVT
+      STEPS 20000
+      TIMESTEP 0.5
+      TEMPERATURE 340
+      &THERMOSTAT
+         TYPE CSVR
+         &CSVR
+            TIMECON 50
+         &END CSVR
+      &END THERMOSTAT
+   &END MD
+   &PRINT
+     &TRAJECTORY
+       FORMAT XYZ
+       &EACH
+         MD 1
+       &END EACH
+     &END TRAJECTORY
+     &FORCES ON
+       FORMAT XYZ
+       &EACH
+         MD 1
+       &END EACH
+     &END FORCES
+     &VELOCITIES ON
+       FORMAT XYZ
+       &EACH
+         MD 1
+       &END EACH
+     &END VELOCITIES
+     &STRESS ON
+       &EACH
+         MD 1
+       &END EACH
+     &END STRESS
+     &CELL ON
+       &EACH
+         MD 1
+       &END EACH
+     &END CELL
+   &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD Quickstep
+  STRESS_TENSOR ANALYTICAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT_UZH
+    POTENTIAL_FILE_NAME POTENTIAL_UZH
+    &QS
+      EPS_DEFAULT 1.0E-13
+      EXTRAPOLATION ASPC
+      EXTRAPOLATION_ORDER 2
+    &END QS
+    &MGRID
+      CUTOFF 1200
+      NGRIDS 5
+      REL_CUTOFF 30
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &MGGA_X_r2SCAN
+          &END MGGA_X_r2SCAN
+          &MGGA_C_r2SCAN
+        &END MGGA_C_r2SCAN
+      &END XC_FUNCTIONAL
+    &END XC
+    &SCF
+      EPS_SCF 1.0E-6
+      MAX_SCF 100
+      &OT ON
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        ENERGY_GAP 0.1
+        STEPSIZE 0.1
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-6
+        MAX_SCF 10
+      &END OUTER_SCF
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-SCAN-GTH
+      POTENTIAL GTH-SCAN
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-MOLOPT-SCAN-GTH
+      POTENTIAL GTH-SCAN
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-SCAN-GTH
+      POTENTIAL GTH-SCAN
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-MOLOPT-SCAN-GTH
+      POTENTIAL GTH-SCAN
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
