@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
-include { cp2kGenInp } from './tips/nextflow/cp2k.nf' addParams(publish: 'benchmark')
+include { cp2kGenInp } from './tips/nextflow/cp2k.nf' addParams(publish: './')
 
 workflow {
   ch_opts = Channel.fromList(
@@ -11,9 +11,6 @@ workflow {
       [ 'N4-T16-C16', '--nodes 4 --ntasks-per-node 16 --cpus-per-task 16 -p main', '8'],
       [ 'N8-T16-C16', '--nodes 8 --ntasks-per-node 16 --cpus-per-task 16 -p main', '8'],
       ['N16-T16-C16','--nodes 16 --ntasks-per-node 16 --cpus-per-task 16 -p main', '8'],
-      [ 'N4-T8-C32',  '--nodes 4 --ntasks-per-node 8 --cpus-per-task 32 -p main', '16'],
-      [ 'N8-T8-C32',  '--nodes 8 --ntasks-per-node 8 --cpus-per-task 32 -p main', '16'],
-      ['N16-T8-C32', '--nodes 16 --ntasks-per-node 8 --cpus-per-task 32 -p main', '16'],
    ]
   )
 
