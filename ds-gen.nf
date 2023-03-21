@@ -72,8 +72,11 @@ workflow cp2kloop {
 
   cp2k.out.restart \
     | map {name, files -> \
-           ["$params.cp2k_tag-${name2ps(name)}-${name2ps(name)+each_ps}-ps/${name2geo(name)}",
-            files.sort {f -> (f=~/_(\d+).restart/)[0][1].toInteger()}]} \
+           ["$params.cp2k_tag-${name2ps(name)}-${name2ps(name)+each_ps}ps/${name2geo(name)}",
+            // this would find the last numbered restart:
+            (files
+             .findAll {f-> f.name=~/_(\d+)\.restart/} \
+             .sort {f -> (f.name=~/_(\d+).restart/)[0][1].toInteger()})[-1]]} \
     | collate(inp_size) \
     | set {nx_inp}
 
