@@ -16,3 +16,4 @@ __pycache__/
 /notebooks/*.tikz
 /ck-cp2k-frc/
 /bench/
+/preview/
