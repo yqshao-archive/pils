@@ -18,15 +18,18 @@ params.tags = 'a32b32i0,a0b0i32,a16b16i16'
 params.rhos = '1.1551,1.0753' // g cm^-3
 params.lmp_inp = 'skel/lmp/init.in'
 
-workflow lmpinit {
+workflow mtinit {
   channel.fromList(params.tags.tokenize(',')) \
     | combine (channel.fromList(params.rhos.toString().tokenize(','))) \
     | map { tag, rho -> tag2inp(tag, rho) } \
-    | moltemplate \
+    | moltemplate
+}
+
+workflow lmpinit {
+    mtinit
     | map {name, aux -> [name, file(params.lmp_inp), aux]} \
     | lammpsMD
 }
-
 
 //==========================================//
 // THE GENERATION OF THE INITAL TRANING SET //
