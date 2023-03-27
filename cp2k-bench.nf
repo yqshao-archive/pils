@@ -5,12 +5,10 @@ include { cp2kGenInp } from './tips/nextflow/cp2k.nf' addParams(publish: './')
 workflow {
   ch_opts = Channel.fromList(
     [
-      [ 'N4-T32-C8',  '--nodes 4 --ntasks-per-node 32 --cpus-per-task 8 -p main', '4'],
-      [ 'N8-T32-C8',  '--nodes 8 --ntasks-per-node 32 --cpus-per-task 8 -p main', '4'],
-      ['N16-T32-C8', '--nodes 16 --ntasks-per-node 32 --cpus-per-task 8 -p main', '4'],
-      [ 'N4-T16-C16', '--nodes 4 --ntasks-per-node 16 --cpus-per-task 16 -p main', '8'],
-      [ 'N8-T16-C16', '--nodes 8 --ntasks-per-node 16 --cpus-per-task 16 -p main', '8'],
-      ['N16-T16-C16','--nodes 16 --ntasks-per-node 16 --cpus-per-task 16 -p main', '8'],
+      [ 'N4-T32',  '--nodes 4 --ntasks-per-node 32 --cpus-per-task 1'],
+      [ 'N8-T32',  '--nodes 8 --ntasks-per-node 32 --cpus-per-task 1'],
+      ['N16-T32', '--nodes 16 --ntasks-per-node 32 --cpus-per-task 1'],
+      ['N32-T32', '--nodes 32 --ntasks-per-node 32 --cpus-per-task 1'],
    ]
   )
 
@@ -26,21 +24,20 @@ workflow {
     | cp2kGenInp \
     | combine(ch_aux) \
     | combine(ch_opts) \
-    | map {name, inp, aux, opt, copt, omp -> \
-           [name, inp, file(aux), opt, copt, omp]} \
+    | map {name, inp, aux, opt, copt -> \
+           [name, inp, file(aux), opt, copt]} \
     | cp2kBench
 }
 
 process cp2kBench {
   tag "$name"
-  scratch '$SNIC_TMP'
-  module 'PDC/21.11:CP2K/9.1-cpeGNU-21.11'
+  scratch '/scratch/local'
+  module 'CP2K/9.1-psmp-PLUMED'
   publishDir "$name-$opt"
   clusterOptions "-A SNIC2022-1-27 $copt"
-  beforeScript "export OMP_NUM_THREADS=$omp OMP_PLACES=cores"
 
   input:
-    tuple val(name), path(input), path(aux), val(opt),  val(copt), val(omp)
+    tuple val(name), path(input), path(aux), val(opt),  val(copt)
 
   output:
     tuple val(name), path('cp2k.log'), emit:logs

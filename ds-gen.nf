@@ -39,6 +39,7 @@ params.cp2k_aux = 'skel/cp2k-aux/*'
 params.cp2k_geo = 'trajs/lmp/*/equi.dump'
 params.cp2k_each_ps  = '2'
 params.cp2k_max_ps = '100'
+params.cp2k_restart = '2' // restart from the x ps checkpoint
 include { cp2kGenInp; cp2k } from './tips/nextflow/cp2k.nf' addParams(publish: 'trajs/cp2k')
 
 
@@ -58,6 +59,25 @@ workflow cp2kprod {
     | set {ch_cp2k_init}
 
   cp2kloop.recurse(ch_cp2k_init).until{name2ps(it)>max_ps}
+}
+
+workflow cp2krestart {
+  each_ps = params.cp2k_each_ps.toInteger()
+  max_ps = params.cp2k_max_ps.toInteger()
+  restart = params.cp2k_restart.toInteger()
+
+  channel.fromPath("trajs/cp2k/$params.cp2k_tag-${restart-each_ps}-${restart}ps/*/*.restart") \
+    | map {file -> [name2geo(file.parent), file]} \
+    | groupTuple \
+    | map {name, files -> \
+           ["$params.cp2k_tag-${restart}-${restart+each_ps}ps/${name}",
+            (files // find the last numbered restart:
+             .findAll {f-> f.name=~/_(\d+)\.restart/} \
+             .sort {f -> (f.name=~/_(\d+).restart/)[0][1].toInteger()})[-1]]} \
+    | collect(flat:false) \
+    | set {ch_cp2k_ckpt}
+
+  cp2kloop.recurse(ch_cp2k_ckpt).until{name2ps(it)>max_ps}
 }
 
 workflow cp2kloop {
