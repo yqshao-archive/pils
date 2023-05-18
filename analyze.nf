@@ -39,7 +39,7 @@ Channel.fromPath('exp/prod-adam-run2/cp2k-vali/nvt*ps/*/', type:'dir') \
                          paths.sort{p-> (p=~/-(\d+)ps/)[0][1].toInteger()}]} \
   | set {cp2k_vali}
 
-Channel.fromPath("$params.proj/prod/gen$params.gen/nvt-*k-5ns-0/*/asemd.traj") \
+Channel.fromPath("$params.proj/prod/gen$params.gen/nvt-*k*-0/*r1.08/asemd.traj") \
   | map {path -> ["${path.parent.parent.name}/${path.parent.name}", path]} \
   | set {pinn_prod}
 
@@ -47,7 +47,7 @@ workflow msd {
   lib = file('py', type:'dir')
   msd0 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.01'])
   msd1 = Channel.of(['msd-10-50ps', '-w 30 -ts 10 -te 50 -s 0.01'])
-  msd2 = Channel.of(['msd-5-10ns', '-w 4000 -te 5000 -s 1'])
+  msd2 = Channel.of(['msd-0-5ns', '-w 4000 -te 5000 -s 1'])
   msd3 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.1'])
 
   cp2k_traj \
@@ -65,14 +65,15 @@ workflow msd {
     | map {name, ds, msd, flag -> ["prod/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
     | set {msd_prod}
 
-  msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_msd
+  // msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_msd
+  msd_prod | compute_msd
 }
 
 workflow rdf {
   lib = file('py', type:'dir')
   rdf0 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.01'])
   rdf1 = Channel.of(['rdf-10-50ps', '-ts 10 -te 50 -s 0.01'])
-  rdf2 = Channel.of(['rdf-5-10ns', '-te 5000 -s 1'])
+  rdf2 = Channel.of(['rdf-0-5ns', '-te 5000 -s 1'])
   rdf3 = Channel.of(['rdf-10-110ns', '-ts 10 -te 110 -s 0.1'])
 
   cp2k_traj \
@@ -90,7 +91,8 @@ workflow rdf {
     | map {name, ds, rdf, flag -> ["prod/$name/$rdf", ds, lib, "-dt 0.1 $flag"]} \
     | set {rdf_prod}
 
-  rdf_cp2k | concat(rdf_vali) | concat (rdf_prod) | compute_rdf
+  // rdf_cp2k | concat(rdf_vali) | concat (rdf_prod) | compute_rdf
+  rdf_prod | compute_rdf
 }
 
 workflow hbnet {
@@ -109,11 +111,12 @@ workflow hbnet {
     | map {name, ds -> ["prod/$name/", ds, lib, "-dt 0.1 $flag"]} \
     | set {hbnet_prod}
 
-  hbnet_cp2k | concat(hbnet_vali) | concat (hbnet_prod) | compute_hbnet
+  // hbnet_cp2k | concat(hbnet_vali) | concat (hbnet_prod) | compute_hbnet
+  hbnet_prod | compute_hbnet
 }
 
 workflow {
-  latent()
+  // latent()
   msd()
   rdf()
   hbnet()

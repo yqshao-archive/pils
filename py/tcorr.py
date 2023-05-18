@@ -80,6 +80,7 @@ def msd(
     h_cache, o_cache, n_cache = [None] * 3
     h_msd, o_msd, n_msd = [None] * 3
     h_cnt, o_cnt, n_cnt = [None] * 3
+    p_cache, p_msd, p_cnt = [None] * 3
     for i, datum in enumerate(ds):
         if i % check == 0:
             this_topo = mktopo(datum, level=0)
@@ -94,8 +95,14 @@ def msd(
         h_cache, h_msd, h_cnt = mkmsd(h_cache, h_msd, h_cnt, h_pos, window)
         o_cache, o_msd, o_cnt = mkmsd(o_cache, o_msd, o_cnt, o_pos, window)
         n_cache, n_msd, n_cnt = mkmsd(n_cache, n_msd, n_cnt, n_pos, window)
+        # polarization, cache
+        pol_h = np.sum(h_pos, axis=0, keepdims=True)
+        pol_o = 0.5 * np.sum(o_pos, axis=0, keepdims=True)
+        pol = pol_h - pol_o  # (cell total) polarization in e*Ang
+        p_cache, p_msd, p_cnt = mkmsd(p_cache, p_msd, p_cnt, pol, window)
     t = np.arange(1, 1 + window) * stride * dt
     np.save("msd.npy", np.array([t, h_msd / h_cnt, o_msd / o_cnt, n_msd / n_cnt]).T)
+    np.save("pmsd.npy", np.array([t, p_msd / p_cnt]).T)
 
 
 @click.command(name="hbnet", short_help="HB network and lifetime calculation")
