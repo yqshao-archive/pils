@@ -163,7 +163,7 @@ def hbnet(
         all_pop_info.append(pop_info)
         a_cache = [set(h_info[h_info[:, 0] == 0, 1])] + a_cache[:-1]
         b_cache = [set(h_info[h_info[:, 0] == 1, 1])] + b_cache[:-1]
-        p_cache = [set(map(frozenset, pair_info[pair_info[:, 0] == 0, 1:]))] + p_cache[
+        p_cache = [set(map(frozenset, pair_info[pair_info[:, 0] == 1, 1:]))] + p_cache[
             :-1
         ]
         a_corr, a_cnt = mktcorr(a_cache, a_corr, a_cnt)
