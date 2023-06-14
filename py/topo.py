@@ -2,6 +2,67 @@
 
 import numpy as np
 
+def mkconst(atoms):
+    """
+    returns 
+    """
+    
+    import numpy as np
+    from ase import Atoms, neighborlist
+    from scipy import sparse
+    from ase.constraints import FixInternals
+
+    (heavy,) = np.where(atoms.numbers != 1)
+    (hydro,) = np.where(atoms.numbers == 1)
+    (nitro,) = np.where(atoms.numbers == 7)
+    (oxyge,) = np.where(atoms.numbers == 8)
+    O_act = oxyge # all oxygen are active
+    natoms = len(atoms)
+    heavy2r = {k:i for i,k in enumerate(heavy)}
+
+    rc = 5
+
+    cutoff = {
+        ("H", "C"): 2.0,
+        ("H", "N"): rc,
+        ("H", "O"): rc,
+        ("C", "C"): 2.0,
+        ("C", "N"): 2.0,
+        ("C", "O"): 2.0,
+    }
+
+    # build initial nl, see ase doc [ase/neighborlsit] ===================================
+    nl_i, nl_j, nl_d = neighborlist.neighbor_list("ijd", atoms, cutoff, self_interaction=False)
+    conMat = sparse.dok_matrix((natoms, natoms), dtype=np.int8)
+    conMat[nl_i, nl_j] = 1  # v ---- mostly taken from the ase documentation
+    conMat[nl_j, nl_i] = 1  #
+    n_mol, mol_assign = sparse.csgraph.connected_components(conMat[heavy, :][:, heavy])
+    mol_sets = [heavy[mol_assign == mol_i] for mol_i in range(n_mol)]
+    CN_N = np.squeeze(np.asarray(conMat[nitro, :][:, heavy].sum(axis=1)))
+    N_act = nitro[CN_N==2]
+    ALL_act = np.concatenate([O_act, N_act])
+    mol_acts = [np.intersect1d(mol_set, ALL_act) for mol_set in mol_sets]
+    type_mol = np.array([2-len(act) for act in mol_acts])
+
+    #active protons:
+    sel0 = [np.where(nl_i == h_ia)[0] for h_ia in hydro]
+    h_n0a = np.array([nl_j[_sel][np.argmin(nl_d[_sel])] for _sel in sel0])
+    H_act = hydro[np.in1d(h_n0a, ALL_act)]
+    H_lig = h_n0a[np.in1d(h_n0a, ALL_act)]
+    H_type = atoms.numbers[H_lig]
+    
+    # make constraints
+    all_bonds = []
+    cnt = 0 
+    for i, j, j_type in zip(H_act, H_lig, H_type):
+        rb = 1.06 if j_type==7 else 1.01
+        all_bonds.append([rb, [i, j]])
+        if j_type==7:
+            cnt += 1
+    c = FixInternals(bonds=all_bonds)
+    atoms.set_constraint(c)
+    return atoms, cnt/len(H_act)
+
 def mktopo(datum, level=0, hbcut=2.25):
     from ase import Atoms, neighborlist
     from scipy import sparse
