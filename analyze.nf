@@ -1,8 +1,8 @@
 #!/usr/bin/env nextflow
 
-params.proj = 'exp/prod-adam-run2'
+params.proj = 'exp/transfer'
 params.gens = '0,14,30' // all gen to latent analysis
-params.gen = '30' //final production gen
+params.gen = '35' //final production gen
 params.latent_ds = 'datasets/pils-50ps.{yml,tfr}'
 params.latent_flags = '--take 100'
 
@@ -74,7 +74,7 @@ workflow rdf {
   rdf0 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.01'])
   rdf1 = Channel.of(['rdf-10-50ps', '-ts 10 -te 50 -s 0.01'])
   rdf2 = Channel.of(['rdf-0-5ns', '-te 5000 -s 1'])
-  rdf3 = Channel.of(['rdf-10-110ns', '-ts 10 -te 110 -s 0.1'])
+  rdf3 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.1'])
 
   cp2k_traj \
     | combine(rdf0) \
