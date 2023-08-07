@@ -35,6 +35,6 @@ process tame_cell {
 
 workflow {
   ch_trajs = Channel.fromPath( '/home/yunqi/proj_cond/2019_NaOH/traj/naoh_h2o-runner/*', type:'dir' )
-  // ch_trajs | tame_onsager
+  ch_trajs | tame_onsager
   ch_trajs | tame_cell
 }

@@ -39,6 +39,10 @@ Channel.fromPath('exp/prod-adam-run2/cp2k-vali/nvt*ps/*/', type:'dir') \
                          paths.sort{p-> (p=~/-(\d+)ps/)[0][1].toInteger()}]} \
   | set {cp2k_vali}
 
+Channel.fromPath("trajs/constmd/*/asemd.traj")
+  | map {path -> ["${path.parent.parent.name}/${path.parent.name}", path]} \
+  | set {pinn_const}
+
 Channel.fromPath("$params.proj/prod/gen$params.gen/nvt-*k*-0/*r1.08/asemd.traj") \
   | map {path -> ["${path.parent.parent.name}/${path.parent.name}", path]} \
   | set {pinn_prod}
@@ -65,8 +69,13 @@ workflow msd {
     | map {name, ds, msd, flag -> ["prod/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
     | set {msd_prod}
 
+  pinn_const \
+    | combine(msd2.concat(msd3)) \
+    | map {name, ds, msd, flag -> ["const/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
+    | set {msd_const}
+
   // msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_msd
-  msd_prod | compute_msd
+  msd_const | compute_msd
 }
 
 workflow rdf {
@@ -91,8 +100,13 @@ workflow rdf {
     | map {name, ds, rdf, flag -> ["prod/$name/$rdf", ds, lib, "-dt 0.1 $flag"]} \
     | set {rdf_prod}
 
+  pinn_const \
+    | combine(rdf2.concat(rdf3)) \
+    | map {name, ds, rdf, flag -> ["const/$name/$rdf", ds, lib, "-dt 0.1 $flag"]} \
+    | set {rdf_const}
+
   // rdf_cp2k | concat(rdf_vali) | concat (rdf_prod) | compute_rdf
-  rdf_prod | compute_rdf
+  rdf_const | compute_rdf
 }
 
 workflow hbnet {
@@ -111,8 +125,12 @@ workflow hbnet {
     | map {name, ds -> ["prod/$name/", ds, lib, "-dt 0.1 $flag"]} \
     | set {hbnet_prod}
 
+  pinn_const \
+    | map {name, ds -> ["const/$name/", ds, lib, "-dt 0.1 $flag"]} \
+    | set {hbnet_const}
+
   // hbnet_cp2k | concat(hbnet_vali) | concat (hbnet_prod) | compute_hbnet
-  hbnet_prod | compute_hbnet
+  hbnet_const | compute_hbnet
 }
 
 workflow {
