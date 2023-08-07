@@ -10,7 +10,7 @@ def mkconst(atoms):
     import numpy as np
     from ase import Atoms, neighborlist
     from scipy import sparse
-    from ase.constraints import FixInternals
+    from ase.constraints import Hookean
 
     (heavy,) = np.where(atoms.numbers != 1)
     (hydro,) = np.where(atoms.numbers == 1)
@@ -55,12 +55,12 @@ def mkconst(atoms):
     all_bonds = []
     cnt = 0 
     for i, j, j_type in zip(H_act, H_lig, H_type):
-        rb = 1.06 if j_type==7 else 1.01
-        all_bonds.append([rb, [i, j]])
+        # rb = 1.06 if j_type==7 else 1.01
+        # rb = atoms.get_distance(i, j, mic=True)
+        all_bonds.append(Hookean(int(i),int(j),5.,rt=1.5))
         if j_type==7:
             cnt += 1
-    c = FixInternals(bonds=all_bonds)
-    atoms.set_constraint(c)
+    atoms.set_constraint(all_bonds)
     return atoms, cnt/len(H_act)
 
 def mktopo(datum, level=0, hbcut=2.25):

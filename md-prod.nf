@@ -1,9 +1,9 @@
-params.exp = 'exp/prod-adam-run2'
-params.gen = '30'
+params.exp = 'exp/transfer'
+params.gen = '35'
 params.init = 'skel/init/lmp-geo/{a32b32i0,a16b16i16,a0b0i32}-r{1.08,1.16}.xyz'
 params.md_from = 0
-params.md_tag = 'nvt-340k-5ns'
-params.md_flags = '--ensemble nvt --T 340 --t 5000 --dt 0.5 --log-every 200'
+params.md_tag = 'nvt-400k-5ns'
+params.md_flags = '--ensemble nvt --T 400 --t 5000 --dt 0.5 --log-every 200'
 
 include { aseMD } from './tips/nextflow/ase.nf' addParams(publish: "$params.exp/prod/gen$params.gen")
 
