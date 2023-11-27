@@ -65,7 +65,7 @@ process aseMD {
   publishDir "$params.publish/$name"
 
   input:
-    tuple val(name), path(calc, stageAs:'calc.py'), path(init), val(flags), path(aux)
+    tuple val(name), path(calc, stageAs:'calc.py'), path(init, stageAs:'init/*'), val(flags), path(aux)
 
   output:
     tuple val(name), path('asemd.traj'), emit: traj

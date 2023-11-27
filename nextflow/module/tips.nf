@@ -101,8 +101,8 @@ process check {
       msg = f'Converged; will restart from latest frame.'
       new_geo = logs[np.argmax(idx)]
   else:
-      msg = f'energy: {ecnt}/{len(idx)} failed, max={emax:.2f} rmse={ermse:.2f}; '\
-            f'force: {fcnt}/{len(idx)} failed, max={fmax:.2f} rmse={frmse:.2f}.'
+      msg = f'energy: {ecnt}/{len(idx)} failed, max={emax:.3f} rmse={ermse:.3f}; '\
+            f'force: {fcnt}/{len(idx)} failed, max={fmax:.3f} rmse={frmse:.3f}.'
       new_geo = logs[np.argmin(idx)]
   atoms = Atoms(new_geo['elem'], positions=new_geo['coord'], cell=new_geo['cell'],
                 pbc=True)

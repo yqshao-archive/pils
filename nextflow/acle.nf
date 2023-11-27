@@ -19,39 +19,42 @@ def logger (msg) {
 }
 
 // entrypoint parameters ==================================================================
-params.init_geo      = 'input/geo/*.xyz'
-params.init_model    = 'input/pinn/pinet-adam.yml'
-params.init_ds       = 'input/dataset/init-ds.{yml,tfr}'
+params.publish       = 'acle'
+params.init_geo      = 'skel/init/cp2k-geo/*.xyz'
+params.init_model    = 'skel/pinn/pinet-adam.yml'
+params.init_ds       = 'datasets/hicut-10k.{yml,tfr}'
 params.init_time     = 0.5
-params.init_steps    = 200000
+params.init_steps    = 400000
 params.ens_size      = 1
 params.restart_from  = false
 params.restart_conv  = false
 //========================================================================================
 
 // acle parameters =======================================================================
-params.ref           = 'dftb' // reference (module name)
-params.ref_inp       = 'input/dftb/xtb.py'
+params.ref           = 'cp2k' // reference (module name)
+params.ref_inp       = 'skel/cp2k/sp-hicut.inp'
+params.cp2k_aux      = 'skel/cp2k-aux/*'
 params.mpl           = 'pinn' // machine learning potential (module name)
 params.train_flags   = '--log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
 params.train_init    = '--init'
 params.exit_at_max_time = false
-params.max_gen       = 40
+params.max_gen       = 50
 params.min_time      = 0.5
-params.max_time      = 1000.0
+params.max_time      = 2000.0
 params.md_flags      = '--ensemble nvt --dt 0.5 --log-every 100 --T 340'
-params.collect_flags = '-f asetraj --subsample uniform --nsample 10 -of idx.xyz -o ds'
+params.collect_flags = "-f asetraj --subsample uniform --nsample 10 -of idx.xyz -o ds --filter 'mindist>0.3'"
 params.sp_points     = 10
-params.merge_flags   = '-f asetraj'
+params.merge_flags   = '-f cp2klog'
 params.old_flag      = '--nsample 240'
 params.new_flag      = '--psample 100'
-params.frmsetol      = 0.150
-params.ermsetol      = 0.005
-params.fmaxtol       = 2.000
-params.emaxtol       = 0.020
-params.retrain_step  = 100000
+params.frmsetol      = 0.200
+params.ermsetol      = 0.020
+params.fmaxtol       = 5.000
+params.emaxtol       = 0.050
+params.retrain_step  = 200000
 params.acc_fac       = 4.0
 params.brake_fac     = 1.0
+params.filters       = "--filter 'abs(force)<1000.0'"
 //========================================================================================
 
 // Imports (publish directories are set here) ============================================
@@ -69,16 +72,16 @@ workflow entry {
   logger('Starting an AcLe Loop')
   init_ds = file(params.init_ds)
   init_geo = file(params.init_geo)
-  geo_size = init_geo.size
+  params.geo_size = init_geo.size
   ens_size = params.ens_size.toInteger()
   logger("Initial dataset: ${init_ds.name};")
-  logger("Initial geometries ($geo_size) in ${params.init_geo}")
+  logger("Initial geometries ($params.geo_size) in ${params.init_geo}")
 
   if (params.restart_from) {
     init_gen = params.restart_from.toString()
-    init_models = file("${params.proj}/models/gen${init_gen}/*/model", type:'dir')
-    init_geo = file("${params.proj}/check/gen${init_gen}/*/*.xyz")
-    init_ds = file("${params.proj}/mixed/gen${init_gen}/mix-ds.{yml,tfr}")
+    init_models = file("${params.publish}/models/gen${init_gen}/*/model", type:'dir')
+    init_geo = file("${params.publish}/check/gen${init_gen}/*/*.xyz")
+    init_ds = file("${params.publish}/dsmix/${init_gen}/mix-ds.{yml,tfr}")
     logger("restarting from gen$init_gen ensemble of size $ens_size;")
     init_gen = (init_gen.toInteger()+1).toString()
   } else{
@@ -98,7 +101,7 @@ workflow entry {
   converge = params.restart_conv.toBoolean()
 
   init_inp = [init_gen, init_geo, init_ds, init_models, steps, time, converge]
-  ch_inp = Channel.value(ini_inp)
+  ch_inp = Channel.value(init_inp)
   acle(ch_inp)
 }
 
@@ -108,7 +111,7 @@ workflow acle {
     ch_init
 
   main:
-  loop.recurse(ch_init.first())
+  loop.recurse(ch_init)
     .until{ it[0].toInteger()>params.max_gen || (it[5]>=params.max_time.toFloat() && params.exit_at_max_time) }
 }
 
@@ -144,9 +147,6 @@ workflow loop {
   //=======================================================================================
 
   // sampling with ensable NN =============================================================
-  t_start = params.t_start.toFloat()
-  t_end = params.t_end.toFloat()
-  t_step = params.t_step.toFloat()
   ch_inp | map {[it[0], it[1], it[5]]} | transpose | set {ch_init_t} // init and time
 
   nx_models \

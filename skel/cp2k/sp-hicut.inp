@@ -20,7 +20,7 @@
       EXTRAPOLATION_ORDER 2
     &END QS
     &MGRID
-      CUTOFF 800
+      CUTOFF 1200
       NGRIDS 5
       REL_CUTOFF 30
     &END MGRID
@@ -44,7 +44,7 @@
       &END VDW_POTENTIAL
     &END XC
     &SCF
-      EPS_SCF 3.0E-7
+      EPS_SCF 1.0E-6
       MAX_SCF 100
       &OT ON
         PRECONDITIONER FULL_SINGLE_INVERSE
@@ -53,7 +53,7 @@
         STEPSIZE 0.1
       &END OT
       &OUTER_SCF
-        EPS_SCF 3.0E-7
+        EPS_SCF 1.0E-6
         MAX_SCF 10
       &END OUTER_SCF
     &END SCF
