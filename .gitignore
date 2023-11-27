@@ -17,3 +17,4 @@ __pycache__/
 /bench/
 /preview/
 /nf-history.alvis.230427/
+/notebooks/*.pdf

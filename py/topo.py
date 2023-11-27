@@ -156,11 +156,22 @@ def mktopo(datum, level=0, hbcut=2.25):
         return level0, level1
 
 
-def cktopo(this_topo, prev_topo, idx=None):
+def cktopo(this_topo, prev_topo, keep=False):
     """ Checks the consistency between two topologies"""
+    import warnings
+
     if prev_topo is None:
         return this_topo
+
     topo_keys = ['h_act', 'o_act', 'n_act']
     for (key, this_t,  prev_t) in zip(topo_keys, this_topo, prev_topo):
-        assert np.all(this_t == prev_t), f'{key} is not consistent: {this_t} vs {prev_t}'
-    return this_topo
+        if not keep:
+            assert np.all(this_t == prev_t), f'{key} is not consistent: {this_t} vs {prev_t}'
+        elif not np.all(this_t == prev_t):
+            warnings.warn(f'{key} is not consistent: {this_t} vs {prev_t}')
+
+    if keep:
+        return prev_topo
+    else:
+        return this_topo
+

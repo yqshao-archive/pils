@@ -84,8 +84,8 @@ def msd(
     for i, datum in enumerate(ds):
         if i % check == 0:
             this_topo = mktopo(datum, level=0)
-            prev_topo = cktopo(this_topo, prev_topo)
-            h_act, o_act, n_act = this_topo
+            prev_topo = cktopo(this_topo, prev_topo, keep=True)
+            h_act, o_act, n_act = prev_topo
         cell = np.diag(datum["cell"])[None, :]
         prev_pos = unwrap(prev_pos, datum["coord"], cell)
         rcom_pos = prev_pos - np.average(prev_pos, weights=masses, axis=0)
@@ -159,7 +159,7 @@ def hbnet(
     for i, datum in enumerate(ds):
         print(f'\r {i+1}/{ds.meta["size"]}', end="")
         this_topo, (pop_info, pair_info, h_info) = mktopo(datum, level=1)
-        prev_topo = cktopo(this_topo, prev_topo)
+        prev_topo = cktopo(this_topo, prev_topo, keep=True)
         all_pop_info.append(pop_info)
         a_cache = [set(h_info[h_info[:, 0] == 0, 1])] + a_cache[:-1]
         b_cache = [set(h_info[h_info[:, 0] == 1, 1])] + b_cache[:-1]

@@ -1,9 +1,10 @@
 #!/usr/bin/env nextflow
 
-params.proj = 'exp/transfer'
-params.gens = '0,14,30' // all gen to latent analysis
-params.gen = '35' //final production gen
-params.latent_ds = 'datasets/pils-50ps.{yml,tfr}'
+params.proj = 'exp/scan'
+params.cp2k = 'nvt-scan'
+params.gens = '0,25,49' // all gen to latent analysis
+params.gen = '49' //final production gen
+params.latent_ds = 'datasets/scan.{yml,tfr}'
 params.latent_flags = '--take 100'
 
 //========================================//
@@ -25,88 +26,50 @@ workflow latent {
 //========================//
 include { compute_msd; compute_rdf; compute_hbnet } from './nf/analysis.nf' addParams(publish: "$params.proj/analyses")
 
-Channel.fromPath('trajs/cp2k/nvt*ps/*{1.0753,1.1551}/', type:'dir') \
+Channel.fromPath("trajs/cp2k/${params.cp2k}*ps/*{1.0753,1.1551}/", type:'dir') \
   | map {traj -> [traj.name, traj]} \
   | groupTuple \
   | map {name, paths -> [(name=~/(a\d+b\d+i\d+-rho.*)/)[0][1], \
                          paths.sort{p-> (p=~/-(\d+)ps/)[0][1].toInteger()}]} \
   | set {cp2k_traj}
 
-Channel.fromPath('exp/prod-adam-run2/cp2k-vali/nvt*ps/*/', type:'dir') \
-  | map {traj -> [traj.name, traj]} \
-  | groupTuple \
-  | map {name, paths -> [(name=~/(a\d+b\d+i\d+-r.*)/)[0][1], \
-                         paths.sort{p-> (p=~/-(\d+)ps/)[0][1].toInteger()}]} \
-  | set {cp2k_vali}
-
-Channel.fromPath("trajs/constmd/*/asemd.traj")
-  | map {path -> ["${path.parent.parent.name}/${path.parent.name}", path]} \
-  | set {pinn_const}
-
-Channel.fromPath("$params.proj/prod/gen$params.gen/nvt-*k*-0/*r1.08/asemd.traj") \
+Channel.fromPath("$params.proj/prod/gen$params.gen/nvt-*k*-0/*/asemd.traj") \
   | map {path -> ["${path.parent.parent.name}/${path.parent.name}", path]} \
   | set {pinn_prod}
 
 workflow msd {
   lib = file('py', type:'dir')
-  msd0 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.01'])
-  msd1 = Channel.of(['msd-10-50ps', '-w 30 -ts 10 -te 50 -s 0.01'])
+  msd1 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.01'])
   msd2 = Channel.of(['msd-0-5ns', '-w 4000 -te 5000 -s 1'])
-  msd3 = Channel.of(['msd-10-110ps', '-w 40 -ts 10 -te 110 -s 0.1'])
 
   cp2k_traj \
-    | combine(msd0) \
-    | map {name, ds, msd, flag -> ["cp2k/$name/$msd", ds, lib, "-dt 0.0005 $flag"]} \
+    | combine(msd1) \
+    | map {name, ds, msd, flag -> ["cp2k/${params.cp2k}/$name/$msd", ds, lib, "-dt 0.0005 $flag"]} \
     | set {msd_cp2k}
 
-  cp2k_vali \
-    | combine(msd1) \
-    | map {name, ds, msd, flag -> ["vali/$name/$msd", ds, lib, "-dt 0.0005 $flag"]} \
-    | set {msd_vali}
-
   pinn_prod \
-    | combine(msd2.concat(msd3)) \
+    | combine(msd2) \
     | map {name, ds, msd, flag -> ["prod/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
     | set {msd_prod}
 
-  pinn_const \
-    | combine(msd2.concat(msd3)) \
-    | map {name, ds, msd, flag -> ["const/$name/$msd", ds, lib, "-dt 0.1 $flag"]} \
-    | set {msd_const}
-
-  // msd_cp2k | concat(msd_vali) | concat (msd_prod) | compute_msd
-  msd_const | compute_msd
+  msd_prod | concat(msd_cp2k) | compute_msd
 }
 
 workflow rdf {
   lib = file('py', type:'dir')
-  rdf0 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.01'])
-  rdf1 = Channel.of(['rdf-10-50ps', '-ts 10 -te 50 -s 0.01'])
+  rdf1 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.01'])
   rdf2 = Channel.of(['rdf-0-5ns', '-te 5000 -s 1'])
-  rdf3 = Channel.of(['rdf-10-110ps', '-ts 10 -te 110 -s 0.1'])
 
   cp2k_traj \
-    | combine(rdf0) \
-    | map {name, ds, rdf, flag -> ["cp2k/$name/$rdf", ds, lib, "-dt 0.0005 $flag"]} \
-    | set {rdf_cp2k}
-
-  cp2k_vali \
     | combine(rdf1) \
-    | map {name, ds, rdf, flag -> ["vali/$name/$rdf", ds, lib, "-dt 0.0005 $flag"]} \
-    | set {rdf_vali}
-
+    | map {name, ds, rdf, flag -> ["cp2k/${params.cp2k}/$name/$rdf", ds, lib, "-dt 0.0005 $flag"]} \
+    | set {rdf_cp2k}
   pinn_prod \
-    | combine(rdf2.concat(rdf3)) \
+    | combine(rdf2) \
     | map {name, ds, rdf, flag -> ["prod/$name/$rdf", ds, lib, "-dt 0.1 $flag"]} \
     | set {rdf_prod}
 
-  pinn_const \
-    | combine(rdf2.concat(rdf3)) \
-    | map {name, ds, rdf, flag -> ["const/$name/$rdf", ds, lib, "-dt 0.1 $flag"]} \
-    | set {rdf_const}
-
-  // rdf_cp2k | concat(rdf_vali) | concat (rdf_prod) | compute_rdf
-  rdf_const | compute_rdf
+  rdf_prod | concat(rdf_cp2k) | compute_rdf
 }
 
 workflow hbnet {
@@ -117,20 +80,11 @@ workflow hbnet {
     | map {name, ds -> ["cp2k/$name/", ds, lib, "-dt 0.0005 $flag"]} \
     | set {hbnet_cp2k}
 
-  cp2k_vali \
-    | map {name, ds -> ["vali/$name/", ds, lib, "-dt 0.0005 $flag"]} \
-    | set {hbnet_vali}
-
   pinn_prod \
     | map {name, ds -> ["prod/$name/", ds, lib, "-dt 0.1 $flag"]} \
     | set {hbnet_prod}
 
-  pinn_const \
-    | map {name, ds -> ["const/$name/", ds, lib, "-dt 0.1 $flag"]} \
-    | set {hbnet_const}
-
-  // hbnet_cp2k | concat(hbnet_vali) | concat (hbnet_prod) | compute_hbnet
-  hbnet_const | compute_hbnet
+  hbnet_prod | concat(hbnet_cp2k) | compute_hbnet
 }
 
 workflow {

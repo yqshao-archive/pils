@@ -56,8 +56,8 @@ def main(
     for i, datum in enumerate(ds):
         if i%check == 0:
             this_topo = mktopo(datum, level=0)
-            prev_topo = cktopo(this_topo, prev_topo)
-            h_act, o_act, n_act = this_topo
+            prev_topo = cktopo(this_topo, prev_topo, keep=True)
+            h_act, o_act, n_act = prev_topo
 
         h_pos = datum['coord'][h_act]
         o_pos = datum['coord'][o_act]
