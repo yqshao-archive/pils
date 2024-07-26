@@ -1,8 +1,7 @@
-params.exp = 'exp/transfer'
-params.gen = '35'
-params.init = 'skel/restart/*.xyz'
+params.exp = 'exp/scan'
+params.gen = '49'
+params.init = 'skel/scan-restart/*.xyz'
 params.md_from = 0
-params.md_tag = 'nvt-340k-5ns'
 params.md_flags = '--ensemble nvt --t 5000 --dt 0.5 --log-every 200'
 
 include { constMD } from './nf/const_md.nf'
