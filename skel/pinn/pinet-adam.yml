@@ -1,29 +1,30 @@
 model:
   name: potential_model
   params:
-    e_dress:
-      1: -173.90
-      6: -104.34
-      7: -34.78
-      8: -34.78
-    e_loss_multiplier: 100
+    e_dress: # placeholder to be fitted during initialization
+      1: 0.0
+      6: 0.0
+      7: 0.0
+      8: 0.0
     e_scale: 1.0
     e_unit: 1.0
+    e_loss_multiplier: 100
     f_loss_multiplier: 1000
     log_e_per_atom: true
-    separate_errors: true
+    separate_errors: false
     use_e_per_atom: false
     use_force: true
 network:
-  name: PiNet
+  name: NewPiNet2
   params:
-    rc: 5.5
-    depth: 4
+    rank: 3 # PiNet2 w. P3
+    rc: 4.5
+    depth: 5
     n_basis: 10
     basis_type: gaussian
     atom_types: [1, 6, 7, 8]
-    ii_nodes:   [16, 16, 16]
-    pp_nodes:   [16, 16, 16]
+    ii_nodes:   [16, 16, 16, 16]
+    pp_nodes:   [16, 16, 16, 16]
     pi_nodes:   [16]
     out_nodes:  [16]
 optimizer:
