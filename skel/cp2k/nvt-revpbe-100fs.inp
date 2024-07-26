@@ -7,7 +7,7 @@
 &MOTION
    &MD
       ENSEMBLE NVT
-      STEPS 20000
+      STEPS 200
       TIMESTEP 0.5
       TEMPERATURE 340
       &THERMOSTAT
@@ -59,7 +59,7 @@
       EXTRAPOLATION_ORDER 2
     &END QS
     &MGRID
-      CUTOFF 400
+      CUTOFF 1200
       NGRIDS 5
       REL_CUTOFF 30
     &END MGRID

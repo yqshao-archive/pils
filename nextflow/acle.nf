@@ -22,7 +22,7 @@ def logger (msg) {
 params.publish       = 'acle'
 params.init_geo      = 'skel/init/cp2k-geo/*.xyz'
 params.init_model    = 'skel/pinn/pinet-adam.yml'
-params.init_ds       = 'datasets/hicut-10k.{yml,tfr}'
+params.init_ds       = 'datasets/scan-10k.{yml,tfr}'
 params.init_time     = 0.5
 params.init_steps    = 400000
 params.ens_size      = 1
@@ -32,7 +32,7 @@ params.restart_conv  = false
 
 // acle parameters =======================================================================
 params.ref           = 'cp2k' // reference (module name)
-params.ref_inp       = 'skel/cp2k/sp-hicut.inp'
+params.ref_inp       = 'skel/cp2k/sp-scan.inp'
 params.cp2k_aux      = 'skel/cp2k-aux/*'
 params.mlp           = 'pinn' // machine learning potential (module name)
 params.train_flags   = '--log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
@@ -68,7 +68,7 @@ include { sp } from "./module/${params.ref}.nf" addParams(publish: "$params.publ
 //========================================================================================
 
 // Entry point
-workflow entry {
+workflow {
   logger('Starting an AcLe Loop')
   init_ds = file(params.init_ds)
   init_geo = file(params.init_geo)

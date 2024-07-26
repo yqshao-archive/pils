@@ -7,3 +7,12 @@ ml TensorFlow/2.6.0-foss-2021a-CUDA-11.3.1 ASE/3.22.0-foss-2021a
 virtualenv --system-site-packages ~/envs/pinet2-tf26
 pip install git+https://github.com/Teoroo-CMC/PiNN.git@pre-release # the branch should be changed after releasing
 ```
+
+## Running AcLe
+
+```bash
+ml Nextflow
+nextflow run nextflow/acle.nf -profile alvis-v100,revpbe
+nextflow run nextflow/acle.nf -profile alvis-v100,scan
+```
+
