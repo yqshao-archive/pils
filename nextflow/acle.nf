@@ -34,7 +34,7 @@ params.restart_conv  = false
 params.ref           = 'cp2k' // reference (module name)
 params.ref_inp       = 'skel/cp2k/sp-hicut.inp'
 params.cp2k_aux      = 'skel/cp2k-aux/*'
-params.mpl           = 'pinn' // machine learning potential (module name)
+params.mlp           = 'pinn' // machine learning potential (module name)
 params.train_flags   = '--log-every 10000 --ckpt-every 100000 --batch 1 --max-ckpts 1 --shuffle-buffer 3000'
 params.train_init    = '--init'
 params.exit_at_max_time = false
@@ -62,8 +62,8 @@ include { convert} from './module/tips.nf' addParams(publish: "$params.publish/c
 include { dsmix } from './module/tips.nf' addParams(publish: "$params.publish/dsmix")
 include { merge } from './module/tips.nf' addParams(publish: "$params.publish/merge")
 include { check } from './module/tips.nf' addParams(publish: "$params.publish/check")
-include { train } from "./module/${params.mpl}.nf" addParams(publish: "$params.publish/models")
-include { md } from "./module/${params.mpl}.nf" addParams(publish: "$params.publish/md")
+include { train } from "./module/${params.mlp}.nf" addParams(publish: "$params.publish/models")
+include { md } from "./module/${params.mlp}.nf" addParams(publish: "$params.publish/md")
 include { sp } from "./module/${params.ref}.nf" addParams(publish: "$params.publish/label")
 //========================================================================================
 
