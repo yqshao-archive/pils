@@ -11,7 +11,7 @@ model:
     e_loss_multiplier: 100
     f_loss_multiplier: 1000
     log_e_per_atom: true
-    separate_errors: false
+    separate_errors: true
     use_e_per_atom: false
     use_force: true
 network:
