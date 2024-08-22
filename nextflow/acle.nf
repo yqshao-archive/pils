@@ -58,7 +58,7 @@ params.filters       = "--filter 'abs(force)<1000.0'"
 //========================================================================================
 
 // Imports (publish directories are set here) ============================================
-include { convert} from './module/tips.nf' addParams(publish: "$params.publish/collect")
+include { convert } from './module/tips.nf' addParams(publish: "$params.publish/collect")
 include { dsmix } from './module/tips.nf' addParams(publish: "$params.publish/dsmix")
 include { merge } from './module/tips.nf' addParams(publish: "$params.publish/merge")
 include { check } from './module/tips.nf' addParams(publish: "$params.publish/check")
@@ -84,7 +84,7 @@ workflow {
     init_ds = file("${params.publish}/dsmix/${init_gen}/mix-ds.{yml,tfr}")
     logger("restarting from gen$init_gen ensemble of size $ens_size;")
     init_gen = (init_gen.toInteger()+1).toString()
-  } else{
+  } else {
     init_gen = '0'
     init_models = file(params.init_model, type:'any')
     if (!(init_models instanceof Path)) {
@@ -146,7 +146,7 @@ workflow loop {
     | set {nx_models}
   //=======================================================================================
 
-  // sampling with ensable NN =============================================================
+  // sampling with (ensemble) NN =============================================================
   ch_inp | map {[it[0], it[1], it[5]]} | transpose | set {ch_init_t} // init and time
 
   nx_models \
@@ -186,7 +186,6 @@ workflow loop {
     | groupTuple(size:params.geo_size.toInteger()) \
     | map {gen, geo, conv -> [gen, geo, conv.every()]}
     | set {nx_geo_converge}
-
   //=======================================================================================
 
   // mix the new dataset ==================================================================
